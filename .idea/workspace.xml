@@ -20,6 +20,18 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "Pichus"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/Pichus/tgschedulebot.git",
+    "accountId": "d2ad13ea-f71e-4791-a7aa-a5f30b440b8c"
+  }
+}]]></component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 4
 }</component>
@@ -31,6 +43,7 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
     "Python.bot.executor": "Run",
     "Python.main.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
@@ -129,7 +142,7 @@
       <workItem from="1737400125747" duration="3268000" />
       <workItem from="1737556152029" duration="2490000" />
       <workItem from="1737558658219" duration="1285000" />
-      <workItem from="1737564371890" duration="393000" />
+      <workItem from="1737564371890" duration="735000" />
     </task>
     <task id="LOCAL-00001" summary="first commit, first working version">
       <option name="closed" value="true" />
@@ -147,7 +160,39 @@
       <option name="project" value="LOCAL" />
       <updated>1737564706365</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="first commit, first working version">
+      <option name="closed" value="true" />
+      <created>1737564813752</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1737564813752</updated>
+    </task>
+    <task id="LOCAL-00004" summary="first commit, first working version">
+      <option name="closed" value="true" />
+      <created>1737564887236</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1737564887236</updated>
+    </task>
+    <task id="LOCAL-00005" summary="first commit, first working version">
+      <option name="closed" value="true" />
+      <created>1737564963633</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1737564963633</updated>
+    </task>
+    <task id="LOCAL-00006" summary="first commit, first working version">
+      <option name="closed" value="true" />
+      <created>1737565028452</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1737565028452</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
