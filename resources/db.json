@@ -1,0 +1,12 @@
+{
+  "chats": [
+    {
+      "chat_id": "",
+      "message_thread_id": "",
+      "schedules": {
+        "high" : "",
+        "low": ""
+      }
+    }
+  ]
+}

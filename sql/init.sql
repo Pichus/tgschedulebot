@@ -1,0 +1,17 @@
+CREATE TABLE IF NOT EXISTS Chats (
+    ChatID INTEGER NOT NULL PRIMARY KEY,
+    ChatTelegramID TEXT NOT NULL,
+    MessageThreadID TEXT NOT NULL,
+    ChatName TEXT NOT NULL,
+    HighSchedule TEXT,
+    LowSchedule TEXT,
+    ScheduleMessageID INTEGER,
+    UserID INTEGER NOT NULL,
+    FOREIGN KEY(UserID) REFERENCES Users(UserID)
+);
+
+CREATE TABLE IF NOT EXISTS Users (
+    UserID INTEGER NOT NULL PRIMARY KEY,
+    UserTelegramID TEXT NOT NULL,
+    UserName TEXT NOT NULL
+);
