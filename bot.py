@@ -11,6 +11,7 @@ import time
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+
 logging.basicConfig(level=logging.INFO)
 
 connection = sqlite3.connect('schedulebot.db')
