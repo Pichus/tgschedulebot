@@ -1,64 +1,67 @@
-import sqlite3
+import psycopg
+from repositories import RepositoryBase
+from models import ChatModel
 
+class ChatRepository(RepositoryBase):
+    async def chat_exists(self, chat_telegram_id) -> bool:
+        async with self._db_connection.cursor() as cursor:
+            await cursor.execute("SELECT ChatTelegramID FROM Chats WHERE ChatTelegramID = %s", (chat_telegram_id,))
+            user = await cursor.fetchone()
 
-class ChatRepository:
-    def __init__(self):
-        pass
+        return bool(user)
 
-    def __enter__(self):
-        self.__db_connection = sqlite3.connect('schedulebot.db')
-        self.__cursor = self.__db_connection.cursor()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__db_connection.close()
-
-    def chat_exists(self, chat_telegram_id) -> bool:
-        self.__cursor.execute("SELECT ChatTelegramID FROM Chats WHERE ChatTelegramID = ?", (chat_telegram_id,))
-        user = self.__cursor.fetchone()
-
-        return user
-
-    def add_chat(self, chat_telegram_id, message_thread_id, chat_name, user_telegram_id) -> bool:
-        if self.chat_exists(chat_telegram_id):
+    # noinspection PyTypeChecker,PyArgumentList,SqlInsertValues
+    async def add_chat(self, chat_telegram_id, message_thread_id, chat_name, user_telegram_id) -> bool:
+        if await self.chat_exists(chat_telegram_id):
             return False
 
-        self.__cursor.execute("SELECT UserID FROM Users WHERE UserTelegramID = ?", (user_telegram_id,))
-        user_id = self.__cursor.fetchone()[0]
-        self.__cursor.execute("INSERT INTO Chats (ChatTelegramID, MessageThreadID, ChatName, UserID)"
-                                  "VALUES (?, ?, ?, ?)",
-                                  (chat_telegram_id, message_thread_id, chat_name, int(user_id)))
-        self.__db_connection.commit()
+        async with self._db_connection.cursor() as cursor:
+            await cursor.execute("SELECT UserID FROM Users WHERE UserTelegramID = %s", (user_telegram_id,))
+            user_id = await cursor.fetchone()["UserID"]
+            await cursor.execute(
+                "INSERT INTO Chats (ChatTelegramID, MessageThreadID, ChatName, UserID)"
+                "VALUES (%s, %s, %s, %s)",
+                (chat_telegram_id, message_thread_id, chat_name, int(user_id)))
+        await self._db_connection.commit()
+
         return True
 
-    def update_low_schedule(self, low_schedule: str, chat_name):
-        self.__cursor.execute("UPDATE Chats SET LowSchedule = ? WHERE ChatName = ?",
+    async def update_low_schedule(self, low_schedule: str, chat_name):
+        async with self._db_connection.cursor() as cursor:
+            await cursor.execute("UPDATE Chats SET LowSchedule = ? WHERE ChatName = ?",
                                   (low_schedule, chat_name))
-        self.__db_connection.commit()
+        await self._db_connection.commit()
 
-    def update_high_schedule(self, high_schedule, chat_name):
-        self.__cursor.execute("UPDATE Chats SET HighSchedule = ? WHERE ChatName = ?",
+    async def update_high_schedule(self, high_schedule, chat_name):
+        async with self._db_connection.cursor() as cursor:
+            await cursor.execute("UPDATE Chats SET HighSchedule = ? WHERE ChatName = ?",
                                      (high_schedule, chat_name))
-        self.__db_connection.commit()
+        await self._db_connection.commit()
 
-    def get_schedules(self, chat_telegram_id) -> dict[str, str]:
-        self.__cursor.execute("SELECT HighSchedule, LowSchedule FROM Chats WHERE ChatTelegramID = ?",
+    async def get_schedules(self, chat_telegram_id) -> dict[str, str]:
+        async with self._db_connection.cursor() as cursor:
+            await cursor.execute("SELECT HighSchedule, LowSchedule FROM Chats WHERE ChatTelegramID = ?",
                               (chat_telegram_id,))
-        result = self.__cursor.fetchone()
+            result = await cursor.fetchone()
+
         return {"high": result[0], "low": result[1]}
 
-    def add_schedule_message_id(self, schedule_message_id, chat_telegram_id):
-        self.__cursor.execute("UPDATE Chats "
+    # noinspection SqlResolve,PyTypeChecker
+    async def add_schedule_message_id(self, schedule_message_id, chat_telegram_id):
+        async with self._db_connection.cursor() as cursor:
+            await cursor.execute("UPDATE Chats "
                               "SET ScheduleMessageID = ?"
                               "WHERE ChatTelegramID = ?",
                               (schedule_message_id, chat_telegram_id))
-        self.__db_connection.commit()
+        await self._db_connection.commit()
 
-    def get_chats_for_edit(self) -> list[ChatModel]:
-        self.__cursor.execute("SELECT * "
+    # noinspection PyTypeChecker
+    async def get_chats_for_edit(self) -> list[ChatModel]:
+        async with self._db_connection.cursor() as cursor:
+            await cursor.execute("SELECT * "
                               "FROM Chats "
                               "WHERE ScheduleMessageID IS NOT NULL")
-        chats = self.__cursor.fetchall()
+            chats = await cursor.fetchall()
         result = []
         for chat in chats:
             result.append(ChatModel(*chat))
