@@ -1,15 +1,15 @@
 CREATE TABLE IF NOT EXISTS Users (
     UserID INTEGER PRIMARY KEY,
-    UserTelegramID TEXT NOT NULL,
+    UserTelegramID INTEGER NOT NULL,
     UserName TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Chats (
     ChatID INTEGER PRIMARY KEY ,
     UserID INTEGER NOT NULL REFERENCES Users (UserID),
-    ChatTelegramID TEXT NOT NULL,
+    ChatTelegramID INTEGER NOT NULL,
     ChatName TEXT NOT NULL,
-    MessageThreadID TEXT,
+    MessageThreadID INTEGER,
     ScheduleMessageToEditID INTEGER
 );
 
