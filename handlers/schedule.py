@@ -6,8 +6,9 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, ReplyKeyboardRemove, KeyboardButton, ReplyKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 import utils
+from keyboards.chat_choice import chat_choice_keyboard
 
-from db import ChatsDatabaseService, UsersDatabaseService
+from keyboards.schedule_choice import schedule_type_choice_keyboard
 
 router = Router()
 
@@ -18,25 +19,18 @@ class ChooseScheduleType(StatesGroup):
     sending_schedule = State()
 
 
-available_schedule_types = ["Нижній", "Верхній"]
-
-
 @router.message(StateFilter(None), Command("add_schedule"))
 async def cmd_add_schedule(message: Message, state: FSMContext):
-    keyboard_buttons = []
-
     users_service = UsersDatabaseService()
     with users_service as service:
         user_chats = service.get_user_chats(message.from_user.id)
 
+    chat_names = []
     for chat in user_chats:
-        chat_name = chat[0]
-        keyboard_buttons.append([KeyboardButton(text=chat_name)])
+        chat_names.append(chat["ChatName"])
 
-    keyboard = ReplyKeyboardMarkup(keyboard=keyboard_buttons, resize_keyboard=True,
-        input_field_placeholder="Виберіть чат")
-
-    await message.answer("В якому чаті ви бажаєте оновити розклад?", reply_markup=keyboard)
+    await message.answer("В якому чаті ви бажаєте оновити розклад?",
+                         reply_markup=chat_choice_keyboard(chat_names))
     await state.set_state(ChooseScheduleType.choosing_chat)
 
 
@@ -45,21 +39,16 @@ async def choose_schedule_type(message: Message, state: FSMContext):
     await message.answer(f"Ви обрали чат \"{message.text.lower()}\"")
     await state.update_data(chosen_chat=message.text.lower())
 
-    keyboard_buttons = [
-        [KeyboardButton(text="Нижній")],
-        [KeyboardButton(text="Верхній")]
-    ]
-
-    keyboard = ReplyKeyboardMarkup(keyboard=keyboard_buttons, resize_keyboard=True,
-        input_field_placeholder="Виберіть тип розкладу")
-
-    await message.answer("Який розклад ви бажаєте додати?", reply_markup=keyboard)
+    await message.answer("Який розклад ви бажаєте додати?",
+                         reply_markup=schedule_type_choice_keyboard(['Нижній', 'Верхній']))
     await state.set_state(ChooseScheduleType.choosing_schedule_type)
 
-@router.message(ChooseScheduleType.choosing_schedule_type, F.text.in_(available_schedule_types))
+@router.message(ChooseScheduleType.choosing_schedule_type, F.text.in_(['нижній', 'верхній']))
 async def enter_schedule(message: Message, state: FSMContext):
     await state.update_data(chosen_schedule_type=message.text.lower())
-    await message.answer(f"Ви обрали {message.text.lower()} розклад. Тепер надішліть розклад у вигляді повідомлення", reply_markup=ReplyKeyboardRemove())
+    await message.answer(f"Ви обрали {message.text.lower()} розклад. "
+                         f"Тепер надішліть розклад у вигляді повідомлення",
+                         reply_markup=ReplyKeyboardRemove())
     await state.set_state(ChooseScheduleType.sending_schedule)
 
 
