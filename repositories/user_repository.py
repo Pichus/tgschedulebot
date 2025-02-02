@@ -1,40 +1,33 @@
-import sqlite3
+from repositories.repository_base import RepositoryBase
 
 
-class UserRepository:
-    def __init__(self):
-        pass
+# noinspection PyTypeChecker
+class UserRepository(RepositoryBase):
+    async def user_exists(self, user_telegram_id) -> bool:
+        async with self._db_connection.cursor() as cursor:
+            await cursor.execute("SELECT EXISTS(SELECT 1 FROM Users WHERE UserTelegramID = %s)", (user_telegram_id,))
+            user_exists = await cursor.fetchone()
 
-    def __enter__(self):
-        self.__db_connection = sqlite3.connect('schedulebot.db')
-        self.__cursor = self.__db_connection.cursor()
-        return self
+        return user_exists[0]
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__db_connection.close()
-
-    def user_exists(self, user_telegram_id) -> bool:
-        self.__cursor.execute("SELECT UserTelegramID FROM Users WHERE UserTelegramID = ?", (user_telegram_id,))
-        user = self.__cursor.fetchone()
-
-        return user
-
-    def add_user(self, user_telegram_id, username):
-        if self.user_exists(user_telegram_id):
+    async def add_user(self, user_telegram_id, username):
+        if await self.user_exists(user_telegram_id):
             return
 
-        self.__cursor.execute("INSERT INTO Users (UserTelegramID, UserName)"
-                              "VALUES (?, ?)",
+        async with self._db_connection.cursor() as cursor:
+            await cursor.execute("INSERT INTO Users (UserTelegramID, UserName)"
+                              "VALUES (%s, %s)",
                               (user_telegram_id, username))
-        self.__db_connection.commit()
+        await self._db_connection.commit()
 
-    def get_user_chats(self, user_telegram_id) -> list[str] | None:
-        self.__cursor.execute("SELECT UserID FROM Users WHERE UserTelegramID = ?", (user_telegram_id,))
-        user_id = self.__cursor.fetchone()[0]
-        if user_id:
-            self.__cursor.execute("SELECT ChatName FROM Chats WHERE UserID = ?", (user_id,))
-            user_chats = self.__cursor.fetchall()
-            return user_chats
-        else:
-            print("user not found")
-            return
+    async def get_user_chats(self, user_telegram_id) -> list[str] | None:
+        async with self._db_connection.cursor() as cursor:
+            await cursor.execute("SELECT UserID FROM Users WHERE UserTelegramID = ?", (user_telegram_id,))
+            user_id = (await cursor.fetchone())[0]
+            if user_id:
+                await cursor.execute("SELECT ChatName FROM Chats WHERE UserID = ?", (user_id,))
+                user_chats = await cursor.fetchall()
+                return user_chats
+            else:
+                print("user not found")
+                return

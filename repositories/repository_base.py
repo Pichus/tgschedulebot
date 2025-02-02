@@ -3,6 +3,8 @@ import config
 
 
 class RepositoryBase:
+    def __init__(self):
+        self._db_connection: AsyncConnection
     async def __aenter__(self):
         self._db_connection: AsyncConnection = await AsyncConnection.connect(config.database_connection_string)
         return self

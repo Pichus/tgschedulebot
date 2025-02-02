@@ -1,14 +1,14 @@
-import psycopg
-from repositories import RepositoryBase
 from models import ChatModel
+from repositories.repository_base import RepositoryBase
+
 
 class ChatRepository(RepositoryBase):
     async def chat_exists(self, chat_telegram_id) -> bool:
         async with self._db_connection.cursor() as cursor:
-            await cursor.execute("SELECT ChatTelegramID FROM Chats WHERE ChatTelegramID = %s", (chat_telegram_id,))
+            await cursor.execute("SELECT EXISTS(SELECT 1 FROM Chats WHERE ChatTelegramID = %s)", (chat_telegram_id,))
             user = await cursor.fetchone()
 
-        return bool(user)
+        return user[0]
 
     # noinspection PyTypeChecker,PyArgumentList,SqlInsertValues
     async def add_chat(self, chat_telegram_id, message_thread_id, chat_name, user_telegram_id) -> bool:
