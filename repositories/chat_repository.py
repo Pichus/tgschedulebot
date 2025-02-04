@@ -5,7 +5,7 @@ from repositories.repository_base import RepositoryBase
 class ChatRepository(RepositoryBase):
     async def chat_exists(self, chat_telegram_id) -> bool:
         async with self._db_connection.cursor() as cursor:
-            await cursor.execute("SELECT EXISTS(SELECT 1 FROM Chats WHERE ChatTelegramID = %s)", (chat_telegram_id,))
+            await cursor.execute("SELECT EXISTS(SELECT 1 FROM chats WHERE chat_telegram_id = %s)", (chat_telegram_id,))
             user = await cursor.fetchone()
 
         return user[0]
