@@ -5,7 +5,7 @@ from psycopg import sql
 
 class ChatRepository(RepositoryBase):
     async def chat_exists(self, chat_telegram_id: int) -> bool:
-        query = str("SELECT EXISTS(SELECT 1 FROM chats WHERE chat_telegram_id = %s)")
+        query = sql.SQL("SELECT EXISTS(SELECT 1 FROM chats WHERE chat_telegram_id = %s)")
         await self._cursor.execute(query, (chat_telegram_id,))
         user = await self._cursor.fetchone()
 
@@ -27,23 +27,6 @@ class ChatRepository(RepositoryBase):
         await self._db_connection.commit()
 
         return True
-
-    async def update_low_schedule(self, low_schedule: str, chat_name):
-        query = sql.SQL("UPDATE chats SET low_schedule = %s WHERE chat_name = %s")
-        await self._cursor.execute(query,(low_schedule, chat_name))
-        await self._db_connection.commit()
-
-    async def update_high_schedule(self, high_schedule, chat_name):
-        query = sql.SQL("UPDATE chats SET high_schedule = %s WHERE chat_name = %s")
-        await self._cursor.execute(query,(high_schedule, chat_name))
-        await self._db_connection.commit()
-
-    async def get_schedules(self, chat_telegram_id) -> dict[str, str]:
-        query = sql.SQL("SELECT high_schedule, low_schedule FROM chats WHERE chat_telegram_id = %s")
-        await self._cursor.execute(query,(chat_telegram_id,))
-        result = await self._cursor.fetchone()
-
-        return {"high": result[0], "low": result[1]}
 
     async def add_schedule_message_id(self, schedule_message_id, chat_telegram_id):
         query = sql.SQL("UPDATE chats SET schedule_message_id = %s WHERE chat_telegram_id = %s")
