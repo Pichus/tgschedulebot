@@ -10,24 +10,26 @@ class UserRepository(RepositoryBase):
 
         return user_exists[0]
 
-    async def add_user(self, user_telegram_id, username):
+    async def add_user(self, user_telegram_id: int, user_name: str) -> bool:
+        result = True
         if await self.user_exists(user_telegram_id):
-            return
-
-        async with self._db_connection.cursor() as cursor:
-            await cursor.execute("INSERT INTO Users (UserTelegramID, UserName)"
-                              "VALUES (%s, %s)",
-                              (user_telegram_id, username))
-        await self._db_connection.commit()
+            result = False
+        else:
+            async with self._db_connection.cursor() as cursor:
+                await cursor.execute("INSERT INTO Users (UserTelegramID, UserName)"
+                                  "VALUES (%s, %s)",
+                                  (user_telegram_id, user_name))
+            await self._db_connection.commit()
+        return result
 
     async def get_user_chats(self, user_telegram_id) -> list[str] | None:
+        result: list[str] | None = None
+
         async with self._db_connection.cursor() as cursor:
             await cursor.execute("SELECT UserID FROM Users WHERE UserTelegramID = ?", (user_telegram_id,))
             user_id = (await cursor.fetchone())[0]
             if user_id:
                 await cursor.execute("SELECT ChatName FROM Chats WHERE UserID = ?", (user_id,))
-                user_chats = await cursor.fetchall()
-                return user_chats
-            else:
-                print("user not found")
-                return
+                result = await cursor.fetchall()
+
+        return result
