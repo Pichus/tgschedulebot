@@ -10,7 +10,7 @@ class ScheduleRepository(RepositoryBase):
 
         return schedule[0]
 
-    async def add_schedule(self, chat_id: int, schedule_type: str, schedule: str):
+    async def upsert_schedule(self, chat_id: int, schedule_type: str, schedule: str):
         query = sql.SQL(""""
             INSERT INTO schedules (chat_id, schedule_type, schedule)
             VALUES (%s, %s, %s)
