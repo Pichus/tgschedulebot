@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS schedule_types (
     schedule_type VARCHAR(100) NOT NULL UNIQUE
 );
 
-INSERT INTO schedule_types (schedule_type) VALUES ( 'low'), ('high');
+INSERT INTO schedule_types (schedule_type) VALUES ( 'low'), ('high') ON CONFLICT DO NOTHING ;
 
 CREATE TABLE IF NOT EXISTS schedules (
     schedule_id SERIAL PRIMARY KEY,
