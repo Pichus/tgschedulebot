@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS chats (
     chat_id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES Users (user_id),
+    user_id INTEGER NOT NULL REFERENCES users (user_id),
     chat_telegram_id INTEGER NOT NULL,
     chat_name TEXT NOT NULL,
     message_thread_id INTEGER,
@@ -18,7 +18,9 @@ CREATE TABLE IF NOT EXISTS schedule_types (
     schedule_type VARCHAR(100) NOT NULL UNIQUE
 );
 
-INSERT INTO schedule_types (schedule_type) VALUES ( 'low'), ('high') ON CONFLICT DO NOTHING ;
+INSERT INTO schedule_types (schedule_type)
+VALUES ( 'low'), ('high')
+ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS schedules (
     schedule_id SERIAL PRIMARY KEY,
