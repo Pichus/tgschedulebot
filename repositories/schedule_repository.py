@@ -11,7 +11,7 @@ class ScheduleRepository(RepositoryBase):
         return schedule[0]
 
     async def upsert_schedule(self, chat_id: int, schedule_type: str, schedule: str):
-        query = sql.SQL(""""
+        query = sql.SQL("""
             INSERT INTO schedules (chat_id, schedule_type, schedule)
             VALUES (%s, %s, %s)
             ON CONFLICT (chat_id, schedule_type)
