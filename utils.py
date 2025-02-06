@@ -1,5 +1,8 @@
-def is_high_week(week: int) -> bool:
-    if week % 2 == 0:
-        return True
+from datetime import datetime
+
+
+def get_current_week_type() -> str:
+    if datetime.now().isocalendar().week % 2 == 0:
+        return "верхній"
     else:
-        return False
+        return "нижній"
