@@ -7,7 +7,7 @@ import os
 import config
 import utils
 from repositories import ChatRepository
-# from handlers import commands, schedule
+from handlers import commands, schedule
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -17,7 +17,7 @@ async def main():
 
     async with await psycopg.AsyncConnection.connect(config.database_connection_string) as aconn:
         async with aconn.cursor() as cur:
-            await cur.execute(open("sql/init.sql", "r").read())
+            await cur.execute(open("sql/init.sql", "r", encoding="utf-8").read())
 
     load_dotenv()
 
@@ -49,7 +49,7 @@ async def main():
     # scheduler = AsyncIOScheduler()
     # scheduler.add_job(job, "interval", minutes=1)
 
-    # dp.include_routers(schedule.router, commands.router)
+    dp.include_routers(schedule.router, commands.router)
 
     await bot.delete_webhook(drop_pending_updates=True)
     # scheduler.start()
