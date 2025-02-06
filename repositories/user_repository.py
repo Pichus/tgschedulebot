@@ -1,35 +1,51 @@
+from psycopg import sql
+
+from models import UserModel, ChatModel
 from repositories.repository_base import RepositoryBase
 
 
-# noinspection PyTypeChecker
 class UserRepository(RepositoryBase):
     async def user_exists(self, user_telegram_id) -> bool:
-        async with self._db_connection.cursor() as cursor:
-            await cursor.execute("SELECT EXISTS(SELECT 1 FROM Users WHERE UserTelegramID = %s)", (user_telegram_id,))
-            user_exists = await cursor.fetchone()
+        query = sql.SQL("SELECT EXISTS(SELECT 1 FROM users WHERE user_telegram_id = %s)")
+        await self._cursor.execute(query, (user_telegram_id,))
+        user_exists = await self._cursor.fetchone()
 
         return user_exists[0]
 
-    async def add_user(self, user_telegram_id: int, user_name: str) -> bool:
+    async def add_user(self, user: UserModel) -> bool:
         result = True
-        if await self.user_exists(user_telegram_id):
+
+        query = sql.SQL("INSERT INTO users (user_telegram_id, user_name) VALUES (%s, %s)")
+
+        if await self.user_exists(user.user_telegram_id):
             result = False
         else:
-            async with self._db_connection.cursor() as cursor:
-                await cursor.execute("INSERT INTO Users (UserTelegramID, UserName)"
-                                  "VALUES (%s, %s)",
-                                  (user_telegram_id, user_name))
+            await self._cursor.execute(query, (user.user_telegram_id, user.user_name))
             await self._db_connection.commit()
-        return result
-
-    async def get_user_chats(self, user_telegram_id) -> list[str] | None:
-        result: list[str] | None = None
-
-        async with self._db_connection.cursor() as cursor:
-            await cursor.execute("SELECT UserID FROM Users WHERE UserTelegramID = ?", (user_telegram_id,))
-            user_id = (await cursor.fetchone())[0]
-            if user_id:
-                await cursor.execute("SELECT ChatName FROM Chats WHERE UserID = ?", (user_id,))
-                result = await cursor.fetchall()
 
         return result
+
+    async def get_user_db_id_by_telegram_id(self, user_telegram_id: int) -> int:
+        query = sql.SQL("SELECT user_id FROM users WHERE user_telegram_id = %s")
+        await self._cursor.execute(query, (user_telegram_id,))
+        result = await self._cursor.fetchone()
+        user_id = result[0]
+        return user_id
+
+    async def get_user_chats(self, user_telegram_id: int) -> list[ChatModel] | None:
+        chats: list[ChatModel] = []
+
+        user_id = await self.get_user_db_id_by_telegram_id(user_telegram_id)
+        if user_id:
+            query = sql.SQL("""
+                SELECT chat_telegram_id, chat_name, message_thread_id, schedule_message_to_edit_id
+                FROM chats WHERE user_id = %s
+            """)
+            await self._cursor.execute(query, (user_id,))
+            results = await self._cursor.fetchall()
+            for chat in results:
+                chat_model = ChatModel(chat_telegram_id=chat[0], chat_name=chat[1], message_thread_id=chat[2],
+                                       schedule_message_to_edit_id=chat[3])
+                chats.append(chat_model)
+
+        return chats
