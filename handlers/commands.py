@@ -1,35 +1,21 @@
-import json
-import logging
-import datetime
-
 from aiogram import Router, F
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message, ReplyKeyboardRemove, KeyboardButton, ReplyKeyboardMarkup
-import utils
-from db import UsersDatabaseService, ChatsDatabaseService
+
+from models import UserModel, ChatModel
+from repositories import UserRepository, ChatRepository
 
 router = Router()
-
-def get_schedule(date_arg: datetime.datetime) -> str:
-    with open("./resources/schedules.json", "r", encoding="utf8") as file:
-        data = json.load(file)
-
-
-    if utils.is_high_week(date_arg.isocalendar().week):
-        return data["schedules"]["high"]
-    else:
-        return data["schedules"]["low"]
-
-logging.basicConfig(level=logging.INFO)
 
 
 @router.message(Command("start"))
 async def cmd_start(message: Message):
     await message.answer("Привіт!")
 
-    users_service = UsersDatabaseService()
-    with users_service as service:
-        service.add_user(message.from_user.id, message.from_user.first_name)
+    user_repository = UserRepository()
+    async with user_repository:
+        user_to_add = UserModel(user_telegram_id=message.from_user.id, user_name=message.from_user.full_name)
+        await user_repository.add_user(user_to_add)
 
 
 @router.message(Command("get_chat_id"))
@@ -38,43 +24,20 @@ async def cmd_get_chat_id(message: Message):
     await message.answer(f"ID чату - \"{chat_id}\"")
 
 
-# @router.message(Command("add_chat"))
-# async def cmd_add_chat(message: Message, command: CommandObject):
-#     if command.args is None:
-#         await message.answer("Помилка: ви не передали усіх потрібних аргументів. Приклад\n"
-#                              "/add_chat <ID чату> <ID теми чату>")
-#         return
-#
-#     try:
-#         chat_id, message_thread_id, chat = command.args.split(" ", maxsplit=1)
-#     except ValueError:
-#         await message.answer(
-#             "Помилка: неправильний формат команди. Приклад:\n"
-#             "/add_chat <ID чату> <ID теми чату>"
-#         )
-#         return
-#
-#     chats_service = ChatsDatabaseService()
-#     chat_info = await message.bot.get_chat(chat_id=chat_id)
-#     with chats_service as service:
-#         service.add_chat(chat_id, message_thread_id, chat_info.full_name, message.from_user.id)
-#
-#     await message.answer("Успішно додано чат")
-#     await message.answer(message.chat.username)
-
 @router.message(Command("add_chat"))
 async def cmd_add_chat(message: Message):
-    chats_service = ChatsDatabaseService()
-    users_service = UsersDatabaseService()
+    chat_repository = ChatRepository()
+    user_repository = UserRepository()
 
-    with users_service as service:
-        service.add_user(message.from_user.id, message.from_user.first_name)
+    async with user_repository:
+        user_to_add = UserModel(message.from_user.id, message.from_user.full_name)
+        await user_repository.add_user(user_to_add)
 
-    with chats_service as service:
-        result = service.add_chat(message.chat.id,
-                                  message.message_thread_id,
-                                  message.chat.full_name,
-                                  message.from_user.id)
+    async with chat_repository:
+        chat_to_add = ChatModel(chat_telegram_id=message.chat.id,
+                                message_thread_id=message.message_thread_id,
+                                chat_name=message.chat.full_name)
+        result = await chat_repository.add_chat(chat_to_add, message.from_user.id)
 
 
     if result:
@@ -87,24 +50,3 @@ async def cmd_add_chat(message: Message):
                          f"user={message.from_user.first_name}")
     else:
         await message.answer("Цей чат вже було додано раніше")
-
-
-# @dp.message(Command("send_schedule"))
-# async def cmd_send_schedule(message: Message, command: CommandObject):
-#     if command.args is None:
-#         await message.answer("Помилка: ви не передали усіх потрібних аргументів. Приклад\n"
-#                              "/send_schedule <ID чату> <ID теми чату>")
-#         return
-#
-#     try:
-#         chat_id, message_thread_id = command.args.split(" ", maxsplit=1)
-#     except ValueError:
-#         await message.answer(
-#             "Помилка: неправильний формат команди. Приклад:\n"
-#             "/send_schedule <ID чату> <ID теми чату>"
-#         )
-#         return
-#
-#     await bot.send_message(chat_id=chat_id,
-#                            message_thread_id=int(message_thread_id),
-#                            text=get_schedule(datetime.datetime.now()))
