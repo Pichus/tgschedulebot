@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS schedule_types (
 );
 
 INSERT INTO schedule_types (schedule_type)
-VALUES ( 'low'), ('high')
+VALUES ( 'нижній'), ('верхній')
 ON CONFLICT DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS schedules (
