@@ -3,21 +3,29 @@ from psycopg import sql
 
 
 class ScheduleRepository(RepositoryBase):
-    async def get_schedule(self, chat_id: int, schedule_type: str) -> str:
-        query = sql.SQL("SELECT schedule FROM schedules WHERE chat_id = %s AND schedule_type = %s")
-        await self._cursor.execute(query, (chat_id, schedule_type))
+    async def get_schedule(self, chat_telegram_id: int, schedule_type: str) -> str:
+        query = sql.SQL("""
+            SELECT schedule FROM schedules 
+            WHERE chat_id = (SELECT chat_id FROM chats WHERE chat_telegram_id = %s)  
+            AND schedule_type = %s;
+        """)
+        await self._cursor.execute(query, (chat_telegram_id, schedule_type))
         schedule = await self._cursor.fetchone()
 
         return schedule[0]
 
-    async def upsert_schedule(self, chat_id: int, schedule_type: str, schedule: str):
+    async def upsert_schedule(self, chat_telegram_id: int, schedule_type: str, schedule: str):
         query = sql.SQL("""
             INSERT INTO schedules (chat_id, schedule_type, schedule)
-            VALUES (%s, %s, %s)
+            VALUES (
+                (SELECT chat_id FROM chats WHERE chat_telegram_id = %s), 
+                %s,
+                %s
+            )
             ON CONFLICT (chat_id, schedule_type)
-            DO UPDATE SET schedule = EXCLUDED.schedule
+            DO UPDATE SET schedule = EXCLUDED.schedule;
         """)
-        await self._cursor.execute(query, (chat_id, schedule_type, schedule))
+        await self._cursor.execute(query, (chat_telegram_id, schedule_type, schedule))
         await self._db_connection.commit()
 
     async def get_schedule_types(self) -> list[str]:
