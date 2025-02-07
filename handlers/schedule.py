@@ -81,7 +81,9 @@ async def response(message: Message, state: FSMContext):
 
     async with schedule_repository:
         await schedule_repository.upsert_schedule(
-            chat_telegram_id, user_data["chosen_schedule_type"], message.text
+            chat_telegram_id,
+            user_data["chosen_schedule_type"],
+            message.text,
         )
 
     await message.answer("Успішно додано розклад")
