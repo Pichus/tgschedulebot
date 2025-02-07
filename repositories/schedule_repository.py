@@ -1,13 +1,18 @@
+from aiogram.types import MessageEntity
 from psycopg import sql
 
+import utils
+from models import ScheduleModel
 from repositories.repository_base import RepositoryBase
 
 
 class ScheduleRepository(RepositoryBase):
-    async def get_schedule(self, chat_telegram_id: int, schedule_type: str) -> str:
+    async def get_schedule(
+        self, chat_telegram_id: int, schedule_type: str
+    ) -> ScheduleModel:
         query = sql.SQL(
             """
-            SELECT schedule FROM schedules 
+            SELECT schedule, message_entities_json FROM schedules 
             WHERE chat_id = (SELECT chat_id FROM chats WHERE chat_telegram_id = %s)  
             AND schedule_type = %s;
         """
@@ -15,16 +20,26 @@ class ScheduleRepository(RepositoryBase):
         await self._cursor.execute(query, (chat_telegram_id, schedule_type))
         schedule = await self._cursor.fetchone()
 
-        return schedule[0]
+        return ScheduleModel(
+            schedule_type,
+            schedule[0],
+            utils.json_string_to_message_entities(schedule[1]),
+        )
 
     async def upsert_schedule(
-        self, chat_telegram_id: int, schedule_type: str, schedule: str
+        self,
+        chat_telegram_id: int,
+        schedule_type: str,
+        schedule: str,
+        message_entities: list[MessageEntity],
     ):
+        message_entities_json = utils.message_entities_to_json_string(message_entities)
         query = sql.SQL(
             """
-            INSERT INTO schedules (chat_id, schedule_type, schedule)
+            INSERT INTO schedules (chat_id, schedule_type, schedule, message_entities_json)
             VALUES (
                 (SELECT chat_id FROM chats WHERE chat_telegram_id = %s), 
+                %s,
                 %s,
                 %s
             )
@@ -32,7 +47,9 @@ class ScheduleRepository(RepositoryBase):
             DO UPDATE SET schedule = EXCLUDED.schedule;
         """
         )
-        await self._cursor.execute(query, (chat_telegram_id, schedule_type, schedule))
+        await self._cursor.execute(
+            query, (chat_telegram_id, schedule_type, schedule, message_entities_json)
+        )
         await self._db_connection.commit()
 
     async def get_schedule_types(self) -> list[str]:
