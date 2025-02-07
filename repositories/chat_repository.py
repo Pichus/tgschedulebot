@@ -50,7 +50,9 @@ class ChatRepository(RepositoryBase):
         await self._db_connection.commit()
 
     async def get_chats_for_edit(self) -> list[ChatModel]:
-        query = sql.SQL("SELECT * FROM chats WHERE schedule_message_id IS NOT NULL")
+        query = sql.SQL(
+            "SELECT chat_telegram_id, chat_name, message_thread_id, schedule_message_to_edit_id FROM chats WHERE schedule_message_to_edit_id IS NOT NULL"
+        )
         await self._cursor.execute(query)
         chats = await self._cursor.fetchall()
         result = []
