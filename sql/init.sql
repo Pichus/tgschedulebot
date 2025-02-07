@@ -27,5 +27,6 @@ CREATE TABLE IF NOT EXISTS schedules (
     chat_id INTEGER NOT NULL REFERENCES chats (chat_id),
     schedule_type VARCHAR(100) NOT NULL REFERENCES schedule_types (schedule_type),
     schedule TEXT NOT NULL,
+    message_entities_json TEXT,
     CONSTRAINT unique_chat_schedule UNIQUE (chat_id, schedule_type)
 )
