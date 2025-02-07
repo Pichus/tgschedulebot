@@ -38,9 +38,8 @@ async def main():
         scheduler.add_job(
             edit_schedule_messages_in_all_chats_job,
             trigger="cron",
-            day_of_week="fri",
-            hour=16,
-            minute=44,
+            day_of_week="mon",
+            hour=0,
             max_instances=1,
             misfire_grace_time=None,
             coalesce=True,
