@@ -32,7 +32,7 @@ class ScheduleRepository(RepositoryBase):
         schedule_type: str,
         schedule: str,
         message_entities: list[MessageEntity],
-    ):
+    ) -> None:
         message_entities_json = utils.message_entities_to_json_string(message_entities)
         query = sql.SQL(
             """
