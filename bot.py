@@ -1,21 +1,21 @@
 import asyncio
-from datetime import datetime
-from dotenv import load_dotenv
-from aiogram import Bot, Dispatcher, types, F
-import psycopg
-import os
-import config
-import utils
-from repositories import ChatRepository
-from handlers import commands, schedule
 import logging
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+import os
+
+import psycopg
+from aiogram import Bot, Dispatcher
+from dotenv import load_dotenv
+
+import config
+from handlers import commands, schedule
 
 
 async def main():
     logging.basicConfig(level=logging.INFO)
 
-    async with await psycopg.AsyncConnection.connect(config.database_connection_string) as aconn:
+    async with await psycopg.AsyncConnection.connect(
+        config.database_connection_string
+    ) as aconn:
         async with aconn.cursor() as cur:
             await cur.execute(open("sql/init.sql", "r", encoding="utf-8").read())
 
@@ -57,7 +57,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.set_event_loop_policy(
-        asyncio.WindowsSelectorEventLoopPolicy()
-    )
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(main())
