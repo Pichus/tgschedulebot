@@ -84,6 +84,7 @@ async def response(message: Message, state: FSMContext):
             chat_telegram_id,
             user_data["chosen_schedule_type"],
             message.text,
+            message.entities,
         )
 
     await message.answer("Успішно додано розклад")
@@ -94,7 +95,7 @@ async def response(message: Message, state: FSMContext):
 async def cmd_send_schedule(message: Message):
     chat_repository = ChatRepository()
     async with chat_repository:
-        if not chat_repository.chat_exists(message.chat.id):
+        if not await chat_repository.chat_exists(message.chat.id):
             await message.answer(
                 "Цього чату немає в базі даних бота. Додайте його командою /add_chat"
             )
@@ -108,7 +109,13 @@ async def cmd_send_schedule(message: Message):
                 message.chat.id, current_week_type
             )
 
-        bot_message = await message.answer(schedule)
+        if not schedule:
+            bot_message = await message.answer(
+                "Розкладу для цього чату немає в базі даних. Перед надсиланням розкладу ви маєте додати нижній та верхній його варіант"
+            )
+        bot_message = await message.answer(
+            schedule.schedule, entities=schedule.message_entities
+        )
         await chat_repository.add_schedule_message_to_edit_id(
             bot_message.message_id, message.chat.id
         )
