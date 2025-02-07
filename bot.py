@@ -3,11 +3,14 @@ import logging
 import os
 
 import psycopg
-from aiogram import Bot, Dispatcher
-from dotenv import load_dotenv
+from aiogram import Dispatcher
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import config
+from bot_instance import BotSingleton
 from handlers import commands, schedule
+from scheduler import edit_schedule_messages_in_all_chats_job
 
 
 async def main():
@@ -19,43 +22,37 @@ async def main():
         async with aconn.cursor() as cur:
             await cur.execute(open("sql/init.sql", "r", encoding="utf-8").read())
 
-    load_dotenv()
-
-    bot = Bot(token=os.getenv("TELEGRAM_TOKEN"))
+    bot = BotSingleton(token=os.getenv("TELEGRAM_TOKEN"))
     dp = Dispatcher()
 
-    # async def job():
-    #     with ChatRepository() as service:
-    #         chats = service.get_chats_for_edit()
-    #
-    #     if not chats:
-    #         return
-    #
-    #     is_high_week = utils.is_high_week(datetime.now().isocalendar().week)
-    #
-    #     for chat in chats:
-    #         text: str
-    #         if is_high_week:
-    #             text = chat.high_schedule
-    #         else:
-    #             text = chat.low_schedule
-    #
-    #         text += f"\n\n останнє оновлення {datetime.now()}"
-    #
-    #         await bot.edit_message_text(text=text,
-    #                                     message_id=chat.schedule_message_id,
-    #                                     chat_id=chat.chat_telegram_id,)
-    #
-    # scheduler = AsyncIOScheduler()
-    # scheduler.add_job(job, "interval", minutes=1)
+    jobstores = {"default": SQLAlchemyJobStore(url=config.database_url)}
+
+    scheduler = AsyncIOScheduler(timezone="Europe/Kyiv", jobstores=jobstores)
 
     dp.include_routers(schedule.router, commands.router)
 
     await bot.delete_webhook(drop_pending_updates=True)
-    # scheduler.start()
+
+    scheduler.start()
+    if not scheduler.get_job("edit_schedule_messages_in_all_chats_job"):
+        scheduler.add_job(
+            edit_schedule_messages_in_all_chats_job,
+            trigger="cron",
+            day_of_week="fri",
+            hour=16,
+            minute=44,
+            max_instances=1,
+            misfire_grace_time=None,
+            coalesce=True,
+            id="edit_schedule_messages_in_all_chats_job",
+        )
+
     await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logging.error("Bot stopped")
