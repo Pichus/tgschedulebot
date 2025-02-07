@@ -10,9 +10,9 @@ class ChatRepository(RepositoryBase):
             "SELECT EXISTS(SELECT 1 FROM chats WHERE chat_telegram_id = %s)"
         )
         await self._cursor.execute(query, (chat_telegram_id,))
-        user = await self._cursor.fetchone()
+        chat = await self._cursor.fetchone()
 
-        return user[0]
+        return chat[0]
 
     async def add_chat(self, chat_model: ChatModel, user_telegram_id: int) -> bool:
         result = True
