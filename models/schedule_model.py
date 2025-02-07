@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 
+from aiogram.types import MessageEntity
+
 
 @dataclass
 class ScheduleModel:
-    schedule_id: int
-    chat_id: int
     schedule_type: str
     schedule: str
+    message_entities: list[MessageEntity]
