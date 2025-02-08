@@ -20,12 +20,6 @@ async def cmd_start(message: Message):
         await user_repository.add_user(user_to_add)
 
 
-@router.message(Command("get_chat_id"))
-async def cmd_get_chat_id(message: Message):
-    chat_id = message.chat.id
-    await message.answer(f'ID чату - "{chat_id}"')
-
-
 @router.message(Command("add_chat"))
 async def cmd_add_chat(message: Message):
     chat_repository = ChatRepository()
