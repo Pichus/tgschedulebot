@@ -25,15 +25,20 @@ async def cmd_add_schedule(message: Message, state: FSMContext):
     async with user_repository:
         user_chats = await user_repository.get_user_chats(message.from_user.id)
 
-    user_chat_names = []
-    for user_chat in user_chats:
-        user_chat_names.append(user_chat.chat_name)
+    if not user_chats:
+        await message.answer(
+            "Схоже, у вас немає доданих чатів. Щоб додати чат, скористайтесь командою /add_chat у потрібному чаті"
+        )
+    else:
+        user_chat_names = []
+        for user_chat in user_chats:
+            user_chat_names.append(user_chat.chat_name)
 
-    await message.answer(
-        "В якому чаті ви бажаєте оновити розклад?",
-        reply_markup=chat_choice_keyboard(user_chat_names),
-    )
-    await state.set_state(ChooseScheduleType.choosing_chat)
+        await message.answer(
+            "В якому чаті ви бажаєте оновити розклад?",
+            reply_markup=chat_choice_keyboard(user_chat_names),
+        )
+        await state.set_state(ChooseScheduleType.choosing_chat)
 
 
 @router.message(ChooseScheduleType.choosing_chat, F.text)
