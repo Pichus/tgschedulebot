@@ -115,9 +115,11 @@ async def cmd_send_schedule(message: Message):
             )
 
         if not schedule:
-            bot_message = await message.answer(
+            await message.answer(
                 "Розкладу для цього чату немає в базі даних. Перед надсиланням розкладу ви маєте додати нижній та верхній його варіант"
             )
+            return
+
         bot_message = await message.answer(
             schedule.schedule, entities=schedule.message_entities
         )
