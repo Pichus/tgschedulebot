@@ -38,14 +38,6 @@ async def cmd_add_chat(message: Message):
         result = await chat_repository.add_chat(chat_to_add, message.from_user.id)
 
     if result:
-        await message.answer(
-            "Успішно додано чат\n"
-            "Інформація про доданий чат:\n"
-            f"chat_id={message.chat.id}"
-            f"thread_id={message.message_thread_id}"
-            f"chat_name={message.chat.full_name}"
-            f"user_id={message.from_user.id}"
-            f"user={message.from_user.first_name}"
-        )
+        await message.answer("Успішно додано чат\n")
     else:
         await message.answer("Цей чат вже було додано раніше")
