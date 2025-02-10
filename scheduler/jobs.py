@@ -2,8 +2,8 @@ import logging
 from datetime import datetime
 
 import psycopg
-from aiogram.enums import ParseMode
 from aiogram.exceptions import AiogramError
+from pytz import timezone
 
 import config
 import utils
@@ -44,9 +44,7 @@ async def edit_schedule_messages_in_all_chats_job():
             )
             continue
 
-        schedule.schedule += (
-            f"\n\nостаннє оновлення {datetime.now().strftime("%H:%M %d-%m-%Y")}"
-        )
+        schedule.schedule += f"\n\nостаннє оновлення {datetime.now(timezone(config.cron_timezone)).strftime("%H:%M %d-%m-%Y")}"
 
         try:
             await bot.edit_message_text(
