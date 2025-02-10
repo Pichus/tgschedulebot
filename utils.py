@@ -1,7 +1,32 @@
 import json
 from datetime import datetime
 
+import pytz
 from aiogram.types import MessageEntity
+from asyncpg.pgproto.pgproto import timedelta
+from pytz import timezone
+
+from scheduler import CronDate
+
+
+def get_most_recent_monday() -> datetime:
+    today = datetime.now(tz=timezone("UTC"))
+    days_since_monday = today.weekday()
+    most_recent_monday = today - timedelta(days=days_since_monday)
+    return datetime.combine(most_recent_monday, datetime.min.time())
+
+
+def convert_cron_date_to_utc(from_timezone: str, cron_date: CronDate) -> CronDate:
+    reference_monday = get_most_recent_monday()
+    local_date = reference_monday + timedelta(
+        days=cron_date.day_of_week, hours=cron_date.hour, minutes=cron_date.minute
+    )
+    timezone_object = timezone(from_timezone)
+    local_time = timezone_object.localize(local_date)
+    utc_time = local_time.astimezone(pytz.UTC)
+    return CronDate(
+        day_of_week=utc_time.weekday(), hour=utc_time.hour, minute=utc_time.minute
+    )
 
 
 def message_entities_to_json_string(message_entities: list[MessageEntity]) -> str:
