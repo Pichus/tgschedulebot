@@ -59,8 +59,6 @@ async def main():
             id="edit_schedule_messages_in_all_chats_job",
         )
 
-    scheduler.print_jobs()
-
     await dp.start_polling(bot)
 
 
