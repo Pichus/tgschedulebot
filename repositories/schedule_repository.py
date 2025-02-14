@@ -48,7 +48,9 @@ class ScheduleRepository(RepositoryBase):
                 %s
             )
             ON CONFLICT (chat_id, schedule_type)
-            DO UPDATE SET schedule = EXCLUDED.schedule;
+            DO UPDATE SET
+                schedule = EXCLUDED.schedule;
+                message_entities_json = EXCLUDED.message_entities_json;
         """
         )
         await self._cursor.execute(
