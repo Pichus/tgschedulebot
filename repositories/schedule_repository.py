@@ -49,7 +49,7 @@ class ScheduleRepository(RepositoryBase):
             )
             ON CONFLICT (chat_id, schedule_type)
             DO UPDATE SET
-                schedule = EXCLUDED.schedule;
+                schedule = EXCLUDED.schedule,
                 message_entities_json = EXCLUDED.message_entities_json;
         """
         )
