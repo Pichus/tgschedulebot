@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import Router, F
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
@@ -105,7 +107,16 @@ async def response(message: Message, state: FSMContext):
             message.entities,
         )
 
-    await update_schedule_message_in_specific_chat_job(chat_telegram_id)
+    if user_data["chosen_schedule_type"] == utils.get_current_week_type():
+        try:
+            await update_schedule_message_in_specific_chat_job(chat_telegram_id)
+        except Exception as exception:
+            logging.error(f"Error updating message: {exception}")
+            await message.answer(
+                "Упс, щось пішло не так, спробуйте ще раз або напишіть розробнику"
+            )
+            return
+
     await message.answer("Успішно додано/оновлено розклад")
     await state.clear()
 
