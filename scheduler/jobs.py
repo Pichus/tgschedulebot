@@ -13,7 +13,7 @@ from repositories import ChatRepository
 from repositories.schedule_repository import ScheduleRepository
 
 
-async def update_schedule_messages_in_all_chats_job():
+async def edit_schedule_messages_in_all_chats_job():
     bot = BotSingleton(config.telegram_token)
 
     chat_repository = ChatRepository()

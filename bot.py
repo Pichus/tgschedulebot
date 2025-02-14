@@ -11,7 +11,7 @@ from pytz import timezone
 import config
 from bot_instance import BotSingleton
 from handlers import commands, schedule
-from scheduler import update_schedule_messages_in_all_chats_job, CronDate
+from scheduler import edit_schedule_messages_in_all_chats_job, CronDate
 from utils import convert_cron_date_to_utc
 
 
@@ -47,7 +47,7 @@ async def main():
     scheduler.start()
     if not scheduler.get_job("edit_schedule_messages_in_all_chats_job"):
         scheduler.add_job(
-            update_schedule_messages_in_all_chats_job,
+            edit_schedule_messages_in_all_chats_job,
             trigger="cron",
             day_of_week=utc_cron_date.day_of_week,
             hour=utc_cron_date.hour,
