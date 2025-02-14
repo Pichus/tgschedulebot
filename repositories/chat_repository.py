@@ -58,7 +58,7 @@ class ChatRepository(RepositoryBase):
 
         return result
 
-    async def add_schedule_message_to_edit_id(
+    async def add_update_schedule_message_to_edit_id(
         self, schedule_message_id: int, chat_telegram_id: int
     ):
         query = sql.SQL(
