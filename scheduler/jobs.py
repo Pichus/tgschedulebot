@@ -3,12 +3,13 @@ from datetime import datetime
 
 import psycopg
 from aiogram.exceptions import AiogramError
+from aiogram.types import MessageEntity
 from pytz import timezone
 
 import config
 import utils
 from bot_instance import BotSingleton
-from exceptions import ScheduleNotFoundError
+from exceptions import ScheduleNotFoundError, SameScheduleError
 from models import ScheduleModel
 from repositories import ChatRepository
 from repositories.schedule_repository import ScheduleRepository
@@ -60,7 +61,11 @@ async def edit_schedule_messages_in_all_chats_job():
             )
 
 
-async def update_schedule_message_in_specific_chat_job(chat_telegram_id: int) -> bool:
+async def update_schedule_message_in_specific_chat_job(
+    chat_telegram_id: int,
+    schedule_text: str,
+    schedule_message_entities: list[MessageEntity],
+) -> bool:
     bot = BotSingleton(config.telegram_token)
 
     schedule_exists: bool
@@ -79,6 +84,14 @@ async def update_schedule_message_in_specific_chat_job(chat_telegram_id: int) ->
         chat = await chat_repository.get_chat(chat_telegram_id=chat_telegram_id)
         if not chat.schedule_message_to_edit_id:
             return False
+
+    same_schedule_text = schedule_text == schedule.schedule
+    same_schedule_formatting = set(schedule.message_entities) == set(
+        schedule_message_entities
+    )
+
+    if same_schedule_text and same_schedule_formatting:
+        raise SameScheduleError
 
     await bot.edit_message_text(
         text=schedule.schedule,
