@@ -1,0 +1,2 @@
+class ScheduleNotFoundError(Exception):
+    pass
