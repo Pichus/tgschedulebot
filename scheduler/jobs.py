@@ -8,6 +8,7 @@ from pytz import timezone
 import config
 import utils
 from bot_instance import BotSingleton
+from exceptions import ScheduleNotFoundError
 from models import ScheduleModel
 from repositories import ChatRepository
 from repositories.schedule_repository import ScheduleRepository
@@ -66,17 +67,18 @@ async def update_schedule_message_in_specific_chat_job(chat_telegram_id: int) ->
 
     schedule_repository = ScheduleRepository()
     async with schedule_repository:
-        schedule = await schedule_repository.get_schedule(
-            chat_telegram_id, utils.get_current_week_type()
-        )
-        schedule_exists = bool(schedule.schedule)
-
-    if schedule_exists:
-        return False
+        try:
+            schedule = await schedule_repository.get_schedule(
+                chat_telegram_id, utils.get_current_week_type()
+            )
+        except ScheduleNotFoundError:
+            return False
 
     chat_repository = ChatRepository()
     async with chat_repository:
         chat = await chat_repository.get_chat(chat_telegram_id=chat_telegram_id)
+        if not chat.schedule_message_to_edit_id:
+            return False
 
     await bot.edit_message_text(
         text=schedule.schedule,
@@ -84,3 +86,5 @@ async def update_schedule_message_in_specific_chat_job(chat_telegram_id: int) ->
         chat_id=chat_telegram_id,
         entities=schedule.message_entities,
     )
+
+    return True
