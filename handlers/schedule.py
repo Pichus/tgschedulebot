@@ -7,7 +7,7 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, ReplyKeyboardRemove
 
 import utils
-from exceptions import ScheduleNotFoundError
+from exceptions import ScheduleNotFoundError, SameScheduleError
 from keyboards.chat_choice import chat_choice_keyboard
 from keyboards.schedule_choice import schedule_type_choice_keyboard
 from models import UserModel
@@ -109,12 +109,22 @@ async def response(message: Message, state: FSMContext):
 
     if user_data["chosen_schedule_type"] == utils.get_current_week_type():
         try:
-            await update_schedule_message_in_specific_chat_job(chat_telegram_id)
+            await update_schedule_message_in_specific_chat_job(
+                chat_telegram_id, message.text, message.entities
+            )
+        except SameScheduleError:
+            await message.answer(
+                "Схоже, що ви намагаєтесь додати/оновити точно такий самий розклад, який ви вже додали/оновили раніше.\n"
+                "Якщо ви вважаєте, що сталась якась помилка, напишіть розробнику"
+            )
+            await state.clear()
+            return
         except Exception as exception:
             logging.error(f"Error updating message: {exception}")
             await message.answer(
                 "Упс, щось пішло не так, спробуйте ще раз або напишіть розробнику"
             )
+            await state.clear()
             return
 
     await message.answer("Успішно додано/оновлено розклад")
