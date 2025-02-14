@@ -13,7 +13,7 @@ from repositories import ChatRepository
 from repositories.schedule_repository import ScheduleRepository
 
 
-async def edit_schedule_messages_in_all_chats_job():
+async def update_schedule_messages_in_all_chats_job():
     bot = BotSingleton(config.telegram_token)
 
     chat_repository = ChatRepository()
@@ -57,3 +57,30 @@ async def edit_schedule_messages_in_all_chats_job():
             logging.error(
                 f"Failed to edit message for chat {chat.chat_telegram_id}: {exception}"
             )
+
+
+async def update_schedule_message_in_specific_chat_job(chat_telegram_id: int) -> bool:
+    bot = BotSingleton(config.telegram_token)
+
+    schedule_exists: bool
+
+    schedule_repository = ScheduleRepository()
+    async with schedule_repository:
+        schedule = await schedule_repository.get_schedule(
+            chat_telegram_id, utils.get_current_week_type()
+        )
+        schedule_exists = bool(schedule.schedule)
+
+    if schedule_exists:
+        return False
+
+    chat_repository = ChatRepository()
+    async with chat_repository:
+        chat = await chat_repository.get_chat(chat_telegram_id=chat_telegram_id)
+
+    await bot.edit_message_text(
+        text=schedule.schedule,
+        message_id=chat.schedule_message_to_edit_id,
+        chat_id=chat_telegram_id,
+        entities=schedule.message_entities,
+    )
