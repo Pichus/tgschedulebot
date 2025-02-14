@@ -5,6 +5,24 @@ from repositories.repository_base import RepositoryBase
 
 
 class ChatRepository(RepositoryBase):
+    async def get_chat(self, chat_telegram_id: int) -> ChatModel:
+        query = sql.SQL(
+            """
+            SELECT chat_telegram_id, chat_name, message_thread_id, schedule_message_to_edit_id FROM chats 
+            WHERE chat_telegram_id = %s;
+        """
+        )
+
+        await self._cursor.execute(query, (chat_telegram_id,))
+        chat = await self._cursor.fetchone()
+
+        return ChatModel(
+            chat_telegram_id=chat[0],
+            chat_name=chat[1],
+            message_thread_id=chat[2],
+            schedule_message_to_edit_id=chat[3],
+        )
+
     async def chat_exists(self, chat_telegram_id: int) -> bool:
         query = sql.SQL(
             "SELECT EXISTS(SELECT 1 FROM chats WHERE chat_telegram_id = %s)"
