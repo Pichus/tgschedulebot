@@ -30,6 +30,9 @@ def convert_cron_date_to_utc(from_timezone: str, cron_date: CronDate) -> CronDat
 
 
 def message_entities_to_json_string(message_entities: list[MessageEntity]) -> str:
+    if not message_entities:
+        return ""
+
     message_entities_dictionaries = []
     for message_entity in message_entities:
         message_entities_dictionaries.append(
@@ -47,6 +50,9 @@ def message_entities_to_json_string(message_entities: list[MessageEntity]) -> st
 
 
 def json_string_to_message_entities(json_string: str) -> list[MessageEntity]:
+    if not json_string:
+        return []
+
     message_entities = []
     message_entities_dictionaries = json.loads(json_string)
 
