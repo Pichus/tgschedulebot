@@ -5,8 +5,10 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, ReplyKeyboardRemove
 
 import utils
+from exceptions import ScheduleNotFoundError
 from keyboards.chat_choice import chat_choice_keyboard
 from keyboards.schedule_choice import schedule_type_choice_keyboard
+from models import UserModel
 from repositories import UserRepository, ChatRepository
 from repositories.schedule_repository import ScheduleRepository
 from scheduler.jobs import update_schedule_message_in_specific_chat_job
@@ -24,6 +26,16 @@ class ChooseScheduleType(StatesGroup):
 async def cmd_add_schedule(message: Message, state: FSMContext):
     user_repository = UserRepository()
     async with user_repository:
+        user_exists = await user_repository.user_exists(message.from_user.id)
+
+        if not user_exists:
+            await user_repository.add_user(
+                UserModel(
+                    user_telegram_id=message.from_user.id,
+                    user_name=message.from_user.full_name,
+                )
+            )
+
         user_chats = await user_repository.get_user_chats(message.from_user.id)
 
     if not user_chats:
@@ -112,19 +124,19 @@ async def cmd_send_schedule(message: Message):
 
         schedule_repository = ScheduleRepository()
         async with schedule_repository:
-            schedule = await schedule_repository.get_schedule(
-                message.chat.id, current_week_type
-            )
-
-        if not schedule:
-            await message.answer(
-                "Розкладу для цього чату немає в базі даних. Перед надсиланням розкладу ви маєте додати нижній та верхній його варіант"
-            )
-            return
+            try:
+                schedule = await schedule_repository.get_schedule(
+                    message.chat.id, current_week_type
+                )
+            except ScheduleNotFoundError:
+                await message.answer(
+                    "Розкладу для цього чату немає в базі даних. Перед надсиланням розкладу ви маєте додати нижній та верхній його варіанти за допомогою команди /add_update_schedule"
+                )
+                return
 
         bot_message = await message.answer(
             schedule.schedule, entities=schedule.message_entities
         )
-        await chat_repository.add_schedule_message_to_edit_id(
+        await chat_repository.add_update_schedule_message_to_edit_id(
             bot_message.message_id, message.chat.id
         )
