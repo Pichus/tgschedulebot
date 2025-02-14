@@ -2,6 +2,7 @@ from aiogram.types import MessageEntity
 from psycopg import sql
 
 import utils
+from exceptions import ScheduleNotFoundError
 from models import ScheduleModel
 from repositories.repository_base import RepositoryBase
 
@@ -19,6 +20,9 @@ class ScheduleRepository(RepositoryBase):
         )
         await self._cursor.execute(query, (chat_telegram_id, schedule_type))
         schedule = await self._cursor.fetchone()
+
+        if not schedule:
+            raise ScheduleNotFoundError
 
         return ScheduleModel(
             schedule_type,
