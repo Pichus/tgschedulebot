@@ -9,6 +9,7 @@ from keyboards.chat_choice import chat_choice_keyboard
 from keyboards.schedule_choice import schedule_type_choice_keyboard
 from repositories import UserRepository, ChatRepository
 from repositories.schedule_repository import ScheduleRepository
+from scheduler.jobs import update_schedule_message_in_specific_chat_job
 
 router = Router()
 
@@ -19,7 +20,7 @@ class ChooseScheduleType(StatesGroup):
     sending_schedule = State()
 
 
-@router.message(StateFilter(None), Command("add_schedule"))
+@router.message(StateFilter(None), Command("add_update_schedule"))
 async def cmd_add_schedule(message: Message, state: FSMContext):
     user_repository = UserRepository()
     async with user_repository:
@@ -35,7 +36,7 @@ async def cmd_add_schedule(message: Message, state: FSMContext):
             user_chat_names.append(user_chat.chat_name)
 
         await message.answer(
-            "В якому чаті ви бажаєте оновити розклад?",
+            "В якому чаті ви бажаєте додати/оновити розклад?",
             reply_markup=chat_choice_keyboard(user_chat_names),
         )
         await state.set_state(ChooseScheduleType.choosing_chat)
@@ -51,7 +52,7 @@ async def choose_schedule_type(message: Message, state: FSMContext):
         schedule_types = await schedule_repository.get_schedule_types()
 
     await message.answer(
-        "Який розклад ви бажаєте додати?",
+        "Який розклад ви бажаєте додати/оновити?",
         reply_markup=schedule_type_choice_keyboard(schedule_types),
     )
     await state.set_state(ChooseScheduleType.choosing_schedule_type)
@@ -92,7 +93,8 @@ async def response(message: Message, state: FSMContext):
             message.entities,
         )
 
-    await message.answer("Успішно додано розклад")
+    await update_schedule_message_in_specific_chat_job(chat_telegram_id)
+    await message.answer("Успішно додано/оновлено розклад")
     await state.clear()
 
 
