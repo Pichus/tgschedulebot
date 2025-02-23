@@ -29,6 +29,18 @@ class UserRepository(RepositoryBase):
 
         return result
 
+    async def get_all_users(self, limit: int, offset: int) -> list[UserModel]:
+        query = sql.SQL(
+            "SELECT user_telegram_id, user_name FROM users LIMIT %s OFFSET %s"
+        )
+        await self._cursor.execute(query, (limit, offset))
+        results = await self._cursor.fetchall()
+
+        return [
+            UserModel(user_telegram_id=result[0], user_name=result[1])
+            for result in results
+        ]
+
     async def get_user_db_id_by_telegram_id(self, user_telegram_id: int) -> int:
         query = sql.SQL("SELECT user_id FROM users WHERE user_telegram_id = %s")
         await self._cursor.execute(query, (user_telegram_id,))
