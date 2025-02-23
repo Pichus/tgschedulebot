@@ -10,7 +10,7 @@ from pytz import timezone
 
 import config
 from bot_instance import BotSingleton
-from handlers import commands, schedule
+from handlers import commands, schedule, admin
 from scheduler import edit_schedule_messages_in_all_chats_job, CronDate
 from utils import convert_cron_date_to_utc
 
@@ -31,7 +31,7 @@ async def main():
 
     scheduler = AsyncIOScheduler(timezone=timezone("UTC"), jobstores=jobstores)
 
-    dp.include_routers(schedule.router, commands.router)
+    dp.include_routers(schedule.router, commands.router, admin.admin_router)
 
     await bot.delete_webhook(drop_pending_updates=True)
 
