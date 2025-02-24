@@ -48,7 +48,9 @@ class UserRepository(RepositoryBase):
         user_id = result[0]
         return user_id
 
-    async def get_user_chats(self, user_telegram_id: int) -> list[ChatModel] | None:
+    async def get_user_chats(
+        self, user_telegram_id: int, offset: int, limit: int = 10
+    ) -> list[ChatModel] | None:
         chats: list[ChatModel] = []
 
         user_id = await self.get_user_db_id_by_telegram_id(user_telegram_id)
@@ -57,9 +59,10 @@ class UserRepository(RepositoryBase):
                 """
                 SELECT chat_telegram_id, chat_name, message_thread_id, schedule_message_to_edit_id
                 FROM chats WHERE user_id = %s
+                LIMIT %s OFFSET %s
             """
             )
-            await self._cursor.execute(query, (user_id,))
+            await self._cursor.execute(query, (user_id, limit, offset))
             results = await self._cursor.fetchall()
             for chat in results:
                 chat_model = ChatModel(
