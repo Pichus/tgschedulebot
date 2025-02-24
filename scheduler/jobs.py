@@ -1,6 +1,8 @@
+import asyncio
 import logging
 from datetime import datetime
 
+from aiogram.client.bot import Bot
 import psycopg
 from aiogram.exceptions import AiogramError
 from aiogram.types import MessageEntity
@@ -10,31 +12,18 @@ import config
 import utils
 from bot_instance import BotSingleton
 from exceptions import ScheduleNotFoundError, SameScheduleError
-from models import ScheduleModel
+from models import ScheduleModel, ChatModel
 from repositories import ChatRepository
 from repositories.schedule_repository import ScheduleRepository
 
 
-async def edit_schedule_messages_in_all_chats_job():
-    bot = BotSingleton(config.telegram_token)
-
-    chat_repository = ChatRepository()
-    try:
-        async with chat_repository:
-            chats_for_edit = await chat_repository.get_chats_for_edit()
-    except psycopg.Error as exception:
-        logging.error(f"Database error in chat_repository: {exception}")
-        return
-
-    if not chats_for_edit:
-        return
-
+async def edit_messages_in_chats(bot: Bot, chats_for_edit: list[ChatModel]):
     current_week_type = utils.get_current_week_type()
 
+    schedule_repository = ScheduleRepository()
     for chat in chats_for_edit:
         schedule: ScheduleModel
 
-        schedule_repository = ScheduleRepository()
         try:
             async with schedule_repository:
                 schedule = await schedule_repository.get_schedule(
@@ -59,6 +48,31 @@ async def edit_schedule_messages_in_all_chats_job():
             logging.error(
                 f"Failed to edit message for chat {chat.chat_telegram_id}: {exception}"
             )
+        finally:
+            await asyncio.sleep(0.05)
+
+
+async def edit_schedule_messages_in_all_chats_job():
+    bot = BotSingleton(config.telegram_token)
+
+    chat_repository = ChatRepository()
+    try:
+        async with chat_repository:
+            offset = 0
+            limit = 10
+            while True:
+                chats_for_edit = await chat_repository.get_chats_for_edit(offset, limit)
+
+                if not chats_for_edit:
+                    break
+
+                await edit_messages_in_chats(bot, chats_for_edit)
+
+                offset += limit
+                await asyncio.sleep(1)
+    except psycopg.Error as exception:
+        logging.error(f"Database error in chat_repository: {exception}")
+        return
 
 
 async def update_schedule_message_in_specific_chat_job(
