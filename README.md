@@ -48,6 +48,7 @@ https://t.me/fcsc_schedulebot
     CRON_HOUR = 0      // int 0-23
     CRON_MINUTE = 0    // int 0-59
     CRON_TIMEZONE = "Europe/Kyiv" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+    ADMIN_USER_IDS = "12345678910, 932483203, 2347234983" // telegram user ids of admins separated with commas; use https://t.me/userinfobot to get your user id
     ```
 
 5. Ensure Docker and Docker Compose are installed, then start the bot:
