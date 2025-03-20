@@ -1,9 +1,7 @@
 import gspread
 import requests
-from gspread import Worksheet, Client
 from google.oauth2.service_account import Credentials
-import json
-import traceback
+from gspread import Worksheet
 
 spreadsheet_id = (
     "1kfdlUUWgZ9PKdL4oqJi-Og_Bz--ll-hF2yYgpfrxF4U"  # Please set the Spreadsheet ID.
@@ -26,10 +24,10 @@ client.open_by_key(spreadsheet_id)
 
 access_token = client.http_client.auth.token
 url = (
-    "https://sheets.googleapis.com/v4/spreadsheets/"
-    + spreadsheet_id
-    + "?fields=sheets&ranges="
-    + sheet_name
+        "https://sheets.googleapis.com/v4/spreadsheets/"
+        + spreadsheet_id
+        + "?fields=sheets&ranges="
+        + sheet_name
 )
 res = requests.get(url, headers={"Authorization": "Bearer " + access_token})
 obj = res.json()
@@ -39,7 +37,6 @@ worksheet = sheet.worksheet(sheet_name)
 
 # 1. All values are retrieved.
 values = worksheet.get_all_values()
-
 
 # 2. Put the values to the merged cells.
 if "merges" in obj["sheets"][0].keys():
@@ -56,7 +53,6 @@ if "merges" in obj["sheets"][0].keys():
                 values[r][c] = values[e["startRowIndex"]][e["startColumnIndex"]]
 
 
-
 def get_group_indexes(worksheet: Worksheet):
     raw_data = worksheet.row_values(2)
     return list(filter(lambda item: item, raw_data))
@@ -67,6 +63,7 @@ def get_schedule_by_group_index(worksheet: Worksheet, group_index: str):
     raw_data = worksheet.col_values(col)
 
     return list(filter(lambda item: item, raw_data))
+
 
 def get_schedule_by_group_index_and_day(arg_values, day: str = "", group_index: str = ""):
     print(f"Розклад групи {group_index} на {day}")
