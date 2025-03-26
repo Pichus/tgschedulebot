@@ -55,6 +55,8 @@ def apply_merges(sheet_values: list[list], sheet_metadata: dict[str, Any]) -> No
                 ]
 
 
+# TODO if the week is low, and the subject is only present on a low week, and on a high week a subject is none,
+#  then the subject appears only on both weeks, even though it should only appear on low week
 def get_schedule_by_group_index_and_day(arg_values, week_type: str, group_index) -> str:
     days = ["понеділок", "вівторок", "середа", "четвер", "п'ятниця"]
     result_dict: dict[str, dict[str, list]] = {}
@@ -72,9 +74,9 @@ def get_schedule_by_group_index_and_day(arg_values, week_type: str, group_index)
         if value_day not in days:
             continue
 
-        subject = value[group_index_col]
+        subject: str = value[group_index_col]
 
-        if not subject:
+        if not subject or subject.isspace():
             continue
 
         time_interval = value[1]
@@ -107,7 +109,7 @@ def get_schedule_by_group_index_and_day(arg_values, week_type: str, group_index)
 
 def main():
     apply_merges(values, obj["sheets"][0])
-    print(get_schedule_by_group_index_and_day(values, "верхній", "К-17"))
+    print(get_schedule_by_group_index_and_day(values, "нижній", "К-15"))
 
 
 main()
