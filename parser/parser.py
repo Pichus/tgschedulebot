@@ -55,8 +55,6 @@ def apply_merges(sheet_values: list[list], sheet_metadata: dict[str, Any]) -> No
                 ]
 
 
-# TODO if the week is low, and the subject is only present on a low week, and on a high week a subject is none,
-#  then the subject appears only on both weeks, even though it should only appear on low week
 def get_schedule_by_group_index_and_day(arg_values, week_type: str, group_index) -> str:
     days = ["понеділок", "вівторок", "середа", "четвер", "п'ятниця"]
     result_dict: dict[str, dict[str, list]] = {}
@@ -77,7 +75,7 @@ def get_schedule_by_group_index_and_day(arg_values, week_type: str, group_index)
         subject: str = value[group_index_col]
 
         if not subject or subject.isspace():
-            continue
+            subject = "empty_subject"
 
         time_interval = value[1]
         time_interval_dict_key = time_interval
@@ -95,12 +93,24 @@ def get_schedule_by_group_index_and_day(arg_values, week_type: str, group_index)
         time: str
         subjects: list
         for time, subjects in schedule_dict.items():
-            if (len(subjects) == 1) or (week_type == "верхній"):
-                subject_to_add = subjects[0]
+            if len(subjects) > 1:
+                if week_type == "верхній" and subjects[1] == "empty_subject":
+                    subject_to_add = subjects[0]
+                elif week_type == "нижній" and subjects[0] == "empty_subject":
+                    subject_to_add = subjects[1]
+                elif week_type == "верхній":
+                    subject_to_add = subjects[0]
+                elif week_type == "нижній":
+                    subject_to_add = subjects[1]
             else:
-                subject_to_add = subjects[1]
+                if subjects[0] == "empty_subject":
+                    continue
+
+                subject_to_add = subjects[0]
 
             time = time.replace("\n", "")
+            if subject_to_add == "empty_subject":
+                subject_to_add = "чіл в пузатці"
             subject_to_add = re.sub(" +", " ", subject_to_add)
             result_lines.append(time + " " + subject_to_add + "\n\n")
 
@@ -109,7 +119,7 @@ def get_schedule_by_group_index_and_day(arg_values, week_type: str, group_index)
 
 def main():
     apply_merges(values, obj["sheets"][0])
-    print(get_schedule_by_group_index_and_day(values, "нижній", "К-15"))
+    print(get_schedule_by_group_index_and_day(values, "нижній", "К-16"))
 
 
 main()
