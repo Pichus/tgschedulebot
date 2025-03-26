@@ -1,9 +1,10 @@
 import re
+from typing import Any
+
 import gspread
 import requests
 from black.trans import defaultdict
 from google.oauth2.service_account import Credentials
-from gspread import Worksheet
 
 spreadsheet_id = "1kfdlUUWgZ9PKdL4oqJi-Og_Bz--ll-hF2yYgpfrxF4U"
 sheet_name = "бакалаври"
@@ -32,27 +33,29 @@ obj = res.json()
 sheet = client.open_by_key(spreadsheet_id)
 worksheet = sheet.worksheet(sheet_name)
 
-# 1. All values are retrieved.
 values = worksheet.get_all_values()
 
-# 2. Put the values to the merged cells.
-if "merges" in obj["sheets"][0].keys():
-    for e in obj["sheets"][0]["merges"]:
-        rows = len(values)
-        if rows < e["endRowIndex"]:
-            for i in range(0, e["endRowIndex"] - rows):
-                values.append([""])
-        for r in range(e["startRowIndex"], e["endRowIndex"]):
-            cols = len(values[r])
-            if cols < e["endColumnIndex"]:
-                values[r].extend([""] * (e["endColumnIndex"] - cols))
-            for c in range(e["startColumnIndex"], e["endColumnIndex"]):
-                values[r][c] = values[e["startRowIndex"]][e["startColumnIndex"]]
+
+def apply_merges(sheet_values: list[list], sheet_metadata: dict[str, Any]) -> None:
+    if not "merges" in sheet_metadata.keys():
+        return
+
+    for merge in sheet_metadata["merges"]:
+        rows = len(sheet_values)
+        if rows < merge["endRowIndex"]:
+            for i in range(0, merge["endRowIndex"] - rows):
+                sheet_values.append([""])
+        for row in range(merge["startRowIndex"], merge["endRowIndex"]):
+            cols = len(sheet_values[row])
+            if cols < merge["endColumnIndex"]:
+                sheet_values[row].extend([""] * (merge["endColumnIndex"] - cols))
+            for col in range(merge["startColumnIndex"], merge["endColumnIndex"]):
+                sheet_values[row][col] = sheet_values[merge["startRowIndex"]][
+                    merge["startColumnIndex"]
+                ]
 
 
-def get_schedule_by_group_index_and_day(
-    arg_values, week_type: str, group_index: str = ""
-) -> str:
+def get_schedule_by_group_index_and_day(arg_values, week_type: str, group_index) -> str:
     days = ["понеділок", "вівторок", "середа", "четвер", "п'ятниця"]
     result_dict: dict[str, dict[str, list]] = {}
 
@@ -69,8 +72,12 @@ def get_schedule_by_group_index_and_day(
         if value_day not in days:
             continue
 
-        time_interval = value[1]
         subject = value[group_index_col]
+
+        if not subject:
+            continue
+
+        time_interval = value[1]
         time_interval_dict_key = time_interval
 
         if (not result_dict[value_day].get(time_interval_dict_key)) or (
@@ -98,5 +105,9 @@ def get_schedule_by_group_index_and_day(
     return "".join(result_lines)
 
 
-# print(whole_schedule(values, "верхній", "К-16"))
-print(get_schedule_by_group_index_and_day(values, "верхній", "К-16"))
+def main():
+    apply_merges(values, obj["sheets"][0])
+    print(get_schedule_by_group_index_and_day(values, "верхній", "К-17"))
+
+
+main()
