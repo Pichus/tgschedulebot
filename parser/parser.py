@@ -1,7 +1,7 @@
 import re
-
 import gspread
 import requests
+from black.trans import defaultdict
 from google.oauth2.service_account import Credentials
 from gspread import Worksheet
 
@@ -50,64 +50,53 @@ if "merges" in obj["sheets"][0].keys():
                 values[r][c] = values[e["startRowIndex"]][e["startColumnIndex"]]
 
 
-def get_group_indexes(worksheet: Worksheet):
-    raw_data = worksheet.row_values(2)
-    return list(filter(lambda item: item, raw_data))
-
-
-def get_schedule_by_group_index(worksheet: Worksheet, group_index: str):
-    col = worksheet.find(group_index).col
-    raw_data = worksheet.col_values(col)
-
-    return list(filter(lambda item: item, raw_data))
-
-
 def get_schedule_by_group_index_and_day(
-    arg_values, week_type: str, day: str = "", group_index: str = ""
+    arg_values, week_type: str, group_index: str = ""
 ) -> str:
+    days = ["понеділок", "вівторок", "середа", "четвер", "п'ятниця"]
+    result_dict: dict[str, dict[str, list]] = {}
 
-    result_lines = [f"{day.capitalize()}\n\n"]
+    result_lines = []
+
+    for day in days:
+        result_dict[day] = defaultdict(list)
 
     group_index_col = arg_values[1].index(group_index)
-    time_intervals: dict = {}
 
     for value in arg_values:
         value_day = "".join(value[0].split()).lower()
 
-        if value_day == day:
-            time_interval = value[1]
-            subject = value[group_index_col]
-            time_interval_dict_key = time_interval
+        if value_day not in days:
+            continue
 
-            if not time_intervals.get(time_interval_dict_key):
-                time_intervals[time_interval_dict_key] = [subject]
-            elif subject not in time_intervals[time_interval_dict_key]:
-                time_intervals[time_interval_dict_key].append(subject)
+        time_interval = value[1]
+        subject = value[group_index_col]
+        time_interval_dict_key = time_interval
 
-    for key, value in time_intervals.items():
-        if (len(value) == 1) or (week_type == "верхній"):
-            subject_to_add = value[0]
-        else:
-            subject_to_add = value[1]
+        if (not result_dict[value_day].get(time_interval_dict_key)) or (
+            subject not in result_dict[value_day][time_interval_dict_key]
+        ):
+            result_dict[value_day][time_interval_dict_key].append(subject)
 
-        time = key.replace("\n", "")
-        subject_to_add = re.sub(" +", " ", subject_to_add)
-        result_lines.append(time + " " + subject_to_add)
+    day: str
+    schedule_dict: dict[str, list]
+    for day, schedule_dict in result_dict.items():
+        result_lines.append(day.capitalize() + "\n\n")
+
+        time: str
+        subjects: list
+        for time, subjects in schedule_dict.items():
+            if (len(subjects) == 1) or (week_type == "верхній"):
+                subject_to_add = subjects[0]
+            else:
+                subject_to_add = subjects[1]
+
+            time = time.replace("\n", "")
+            subject_to_add = re.sub(" +", " ", subject_to_add)
+            result_lines.append(time + " " + subject_to_add + "\n\n")
 
     return "".join(result_lines)
 
 
-def whole_schedule(arg_values, week_type: str, group_index: str):
-    result = []
-    days = ["понеділок", "вівторок", "середа", "четвер", "п'ятниця"]
-
-    for day in days:
-        result.append(
-            get_schedule_by_group_index_and_day(arg_values, week_type, day, group_index)
-        )
-        result.append("\n\n")
-
-    return "".join(result)
-
-
-print(whole_schedule(values, "верхній", "К-16"))
+# print(whole_schedule(values, "верхній", "К-16"))
+print(get_schedule_by_group_index_and_day(values, "верхній", "К-16"))
