@@ -1,10 +1,11 @@
 import re
+from collections import defaultdict
 from typing import Any
 
 import gspread
 import requests
-from black.trans import defaultdict
 from google.oauth2.service_account import Credentials
+
 
 spreadsheet_id = "1kfdlUUWgZ9PKdL4oqJi-Og_Bz--ll-hF2yYgpfrxF4U"
 sheet_name = "бакалаври"
@@ -50,9 +51,39 @@ def apply_merges(sheet_values: list[list], sheet_metadata: dict[str, Any]) -> No
             if cols < merge["endColumnIndex"]:
                 sheet_values[row].extend([""] * (merge["endColumnIndex"] - cols))
             for col in range(merge["startColumnIndex"], merge["endColumnIndex"]):
-                sheet_values[row][col] = sheet_values[merge["startRowIndex"]][
-                    merge["startColumnIndex"]
-                ]
+                sheet_values[row][col] = sheet_values[merge["startRowIndex"]][merge["startColumnIndex"]]
+
+
+def format_subject_string(string_to_format: str):
+    string_to_format = re.sub(r"\s+", " ", string_to_format)
+    subject_name = re.findall(r"(^.+?)(?:\()", string_to_format)
+    string_to_format = re.sub(r"\(.+год", "", string_to_format)
+
+    classroom_numbers = re.findall(r"\d+", string_to_format)
+    teacher_names = re.findall(r"(?:ас[.]|доц[.]|пр[.])\s*(\w+)", string_to_format)
+
+    # print(subject_name)
+    # print(classroom_numbers)
+    # print(teacher_names)
+
+    result_lines: list[str] = []
+
+    if subject_name:
+        result_lines.append(subject_name[0].strip() + '\n')
+
+    longest_teacher_name_len = 0
+
+    for teacher_name in teacher_names:
+        longest_teacher_name_len = max(len(teacher_name), longest_teacher_name_len)
+
+    if len(teacher_names) == len(classroom_numbers):
+        for teacher_name, classroom_number in zip(teacher_names, classroom_numbers):
+            space_count = longest_teacher_name_len - len(teacher_name)
+            result_lines.append(f"•{teacher_name} {" " * space_count}{classroom_number} каб.\n")
+    else:
+        result_lines.append(f"•{teacher_names[0]}\n")
+
+    return "".join(result_lines)
 
 
 def get_schedule_by_group_index_and_day(arg_values, week_type: str, group_index) -> str:
@@ -81,8 +112,7 @@ def get_schedule_by_group_index_and_day(arg_values, week_type: str, group_index)
         time_interval_dict_key = time_interval
 
         if (not result_dict[value_day].get(time_interval_dict_key)) or (
-            subject not in result_dict[value_day][time_interval_dict_key]
-        ):
+                subject not in result_dict[value_day][time_interval_dict_key]):
             result_dict[value_day][time_interval_dict_key].append(subject)
 
     day: str
@@ -105,7 +135,7 @@ def get_schedule_by_group_index_and_day(arg_values, week_type: str, group_index)
                 subject_to_add = "чіл в пузатці"
 
             time = time.replace("\n", "")
-            subject_to_add = re.sub(" +", " ", subject_to_add)
+            subject_to_add = format_subject_string(subject_to_add)
             result_lines.append(time + " " + subject_to_add + "\n\n")
 
     return "".join(result_lines)
@@ -114,6 +144,15 @@ def get_schedule_by_group_index_and_day(arg_values, week_type: str, group_index)
 def main():
     apply_merges(values, obj["sheets"][0])
     print(get_schedule_by_group_index_and_day(values, "верхній", "К-13"))
+
+#     string = """Українська та зарубіжна культура
+# (лек) 30 год
+# (кон) 2 год
+# пр. Сторожук С.В.
+#
+#
+# 	"""
+#     print(format_subject_string(string))
 
 
 main()
