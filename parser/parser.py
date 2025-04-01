@@ -56,15 +56,14 @@ def apply_merges(sheet_values: list[list], sheet_metadata: dict[str, Any]) -> No
 
 def format_subject_string(string_to_format: str):
     string_to_format = re.sub(r"\s+", " ", string_to_format)
+    string_to_format = re.sub(r"\d\s?п/г", "", string_to_format) # maybe it should be removed
     subject_name = re.findall(r"(^.+?)(?:\()", string_to_format)
+    if subject_name:
+        string_to_format = string_to_format.replace(subject_name[0].strip(), "")
     string_to_format = re.sub(r"\(.+год", "", string_to_format)
 
     classroom_numbers = re.findall(r"\d+", string_to_format)
-    teacher_names = re.findall(r"(?:ас[.]|доц[.]|пр[.])\s*(\w+)", string_to_format)
-
-    # print(subject_name)
-    # print(classroom_numbers)
-    # print(teacher_names)
+    teacher_names = re.findall(r"(?:ас[.]|доц[.]|пр[.])\s*?(\w+)", string_to_format)
 
     result_lines: list[str] = []
 
@@ -81,7 +80,7 @@ def format_subject_string(string_to_format: str):
             space_count = longest_teacher_name_len - len(teacher_name)
             result_lines.append(f"•{teacher_name} {" " * space_count}{classroom_number} каб.\n")
     else:
-        result_lines.append(f"•{teacher_names[0]}\n")
+        result_lines.append(f"• {teacher_names[0]}\n")
 
     return "".join(result_lines)
 
@@ -133,9 +132,10 @@ def get_schedule_by_group_index_and_day(arg_values, week_type: str, group_index)
 
             if subject_to_add == "empty_subject":
                 subject_to_add = "чіл в пузатці"
+            else:
+                subject_to_add = format_subject_string(subject_to_add)
 
             time = time.replace("\n", "")
-            subject_to_add = format_subject_string(subject_to_add)
             result_lines.append(time + " " + subject_to_add + "\n\n")
 
     return "".join(result_lines)
@@ -143,7 +143,7 @@ def get_schedule_by_group_index_and_day(arg_values, week_type: str, group_index)
 
 def main():
     apply_merges(values, obj["sheets"][0])
-    print(get_schedule_by_group_index_and_day(values, "верхній", "К-13"))
+    print(get_schedule_by_group_index_and_day(values, "верхній", "К-10"))
 
 #     string = """Українська та зарубіжна культура
 # (лек) 30 год
