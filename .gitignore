@@ -182,3 +182,4 @@ pyrightconfig.json
 /parser/credentials.json
 /parser/token.json
 /parser/creds.json
+/parser/appscript_text.py
