@@ -180,3 +180,5 @@ pyrightconfig.json
 
 /parser/service_account.json
 /parser/credentials.json
+/parser/token.json
+/parser/creds.json
