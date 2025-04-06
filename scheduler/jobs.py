@@ -13,8 +13,7 @@ import utils
 from bot_instance import BotSingleton
 from exceptions import ScheduleNotFoundError, SameScheduleError
 from models import ScheduleModel, ChatModel
-from repositories import ChatRepository
-from repositories.schedule_repository import ScheduleRepository
+from repositories import ScheduleRepository, ChatRepository
 
 
 async def edit_messages_in_chats(bot: Bot, chats_for_edit: list[ChatModel]):
