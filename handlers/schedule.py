@@ -222,5 +222,7 @@ async def return_schedule(message: Message, state: FSMContext):
             await state.clear()
             return
 
-    await message.answer(schedule.schedule, parse_mode=ParseMode.MARKDOWN_V2)
+    await message.answer(
+        schedule.schedule, parse_mode=ParseMode.HTML, reply_markup=ReplyKeyboardRemove()
+    )
     await state.clear()
