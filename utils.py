@@ -6,7 +6,7 @@ from aiogram.types import MessageEntity
 from asyncpg.pgproto.pgproto import timedelta
 from pytz import timezone
 
-from scheduler import CronDate
+from models import CronDate
 
 
 def char_to_num(char: str) -> int:
