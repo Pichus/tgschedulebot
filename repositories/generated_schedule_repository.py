@@ -1,7 +1,5 @@
-from aiogram.types import MessageEntity
 from psycopg import sql
 
-import utils
 from exceptions import ScheduleNotFoundError
 from models import ScheduleModel
 from repositories.repository_base import RepositoryBase
@@ -25,7 +23,6 @@ class GeneratedScheduleRepository(RepositoryBase):
         return ScheduleModel(
             schedule_type,
             schedule[0],
-            utils.json_string_to_message_entities(schedule[1]),
         )
 
     async def get_schedules(self, group_index) -> (ScheduleModel, ScheduleModel):
