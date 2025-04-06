@@ -29,12 +29,12 @@ CREATE TABLE IF NOT EXISTS schedules (
     schedule TEXT NOT NULL,
     message_entities_json TEXT,
     CONSTRAINT unique_chat_schedule UNIQUE (chat_id, schedule_type)
-)
+);
 
 CREATE TABLE IF NOT EXISTS generated_schedules (
     schedule_id SERIAL PRIMARY KEY,
-    group_id VARCHAR(10) NOT NULL,
+    group_index VARCHAR(10) NOT NULL,
     schedule_type VARCHAR(100) NOT NULL REFERENCES schedule_types (schedule_type),
     schedule TEXT NOT NULL,
-    CONSTRAINT unique_chat_schedule UNIQUE (chat_id, schedule_type)
-)
+    CONSTRAINT unique_chat_schedule UNIQUE (group_index, schedule_type)
+);
