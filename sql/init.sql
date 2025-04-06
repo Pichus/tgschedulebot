@@ -36,5 +36,5 @@ CREATE TABLE IF NOT EXISTS generated_schedules (
     group_index VARCHAR(10) NOT NULL,
     schedule_type VARCHAR(100) NOT NULL REFERENCES schedule_types (schedule_type),
     schedule TEXT NOT NULL,
-    CONSTRAINT unique_chat_schedule UNIQUE (group_index, schedule_type)
+    CONSTRAINT unique_group_schedule UNIQUE (group_index, schedule_type)
 );
