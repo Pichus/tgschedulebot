@@ -93,7 +93,7 @@ def apply_merges(
 def format_subject_string(string_to_format: str, time_interval: str) -> str:
     time_interval = time_interval.replace("\n", "")
     if string_to_format == "empty_subject":
-        return f"*{time_interval}*\n💤💤💤\n\n"
+        return f"<b>{time_interval}</b>\n💤💤💤\n\n"
 
     string_to_format = re.sub(r"\s+", " ", string_to_format)
     string_to_format = re.sub(
@@ -107,7 +107,7 @@ def format_subject_string(string_to_format: str, time_interval: str) -> str:
     classroom_numbers = re.findall(r"\d+", string_to_format)
     teacher_names = re.findall(r"(?:ас[.]|доц[.]|пр[.])\s*?(\w+)", string_to_format)
 
-    result_lines: list[str] = [f"*{time_interval}*\n"]
+    result_lines: list[str] = [f"<b>{time_interval}</b>\n"]
 
     if subject_name:
         result_lines.append(subject_name[0].strip() + "\n")
@@ -120,8 +120,9 @@ def format_subject_string(string_to_format: str, time_interval: str) -> str:
     if len(teacher_names) == len(classroom_numbers):
         for teacher_name, classroom_number in zip(teacher_names, classroom_numbers):
             space_count = longest_teacher_name_len - len(teacher_name)
+            SPACE = " " + "\u200b"
             result_lines.append(
-                f"•{teacher_name} {" " * space_count}{classroom_number} каб.\n"
+                f"•{teacher_name} {SPACE * space_count}{classroom_number} каб.\n"
             )
     elif len(teacher_names) > 0:
         result_lines.append(f"•{teacher_names[0]}\n")
@@ -232,14 +233,14 @@ def process_schedule_dictionary(
 ) -> tuple[str, str]:
     results: tuple[list[str], list[str]] = ([], [])
 
-    results[0].append("Розклад *ВЕРХНІЙ*\n\n")
-    results[1].append("Розклад *НИЖНІЙ*\n\n")
+    results[0].append("Розклад <b>ВЕРХНІЙ</b>\n\n")
+    results[1].append("Розклад <b>НИЖНІЙ</b>\n\n")
 
     day: str
     schedule_dict: dict[str, list]
     for day, schedule_dict in schedule_dict.items():
 
-        beginning = f"*{day.capitalize()}*\n" + ("-" * 18 + "\n")
+        beginning = f"<b>{day.capitalize()}</b>\n" + ("-" * 18 + "\n")
         for result in results:
             result.append(beginning)
 
