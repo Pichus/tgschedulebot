@@ -7,4 +7,4 @@ from aiogram.types import MessageEntity
 class ScheduleModel:
     schedule_type: str
     schedule: str
-    message_entities: list[MessageEntity]
+    message_entities: list[MessageEntity] | None = None
