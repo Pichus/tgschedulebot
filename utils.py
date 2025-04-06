@@ -9,6 +9,10 @@ from pytz import timezone
 from scheduler import CronDate
 
 
+def char_to_num(char: str) -> int:
+    return ord(char.lower()) - 96
+
+
 def get_most_recent_monday() -> datetime:
     today = datetime.now(tz=timezone("UTC"))
     days_since_monday = today.weekday()
