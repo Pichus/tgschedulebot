@@ -3,13 +3,15 @@ import logging
 
 from aiogram import Router, F
 from aiogram.exceptions import AiogramError
-from aiogram.filters import Command, StateFilter
+from aiogram.filters import Command, StateFilter, CommandObject
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message
 
 import config
-from repositories import UserRepository
+import utils
+from parser import fetch_schedules_dictionary, ScheduleDict, process_schedule_dictionary
+from repositories import UserRepository, GeneratedScheduleRepository
 
 admin_router = Router()
 admin_router.message.filter(F.from_user.id.in_(config.admin_user_ids))
@@ -56,3 +58,53 @@ async def notification_text_response(message: Message, state: FSMContext):
             await asyncio.sleep(1)
 
     await state.clear()
+
+
+@admin_router.message(Command("generate_schedule"))
+async def cmd_generate_schedule(message: Message, command: CommandObject):
+    command_usage = "/generate_schedule <посилання_на_розклад> <назва_аркуша> <№ рядка з назвами груп> <буква стовпця з днями тижня> <буква стовпця з часом> <буква стовпця, де починаються назви груп>"
+
+    if command.args is None:
+        await message.answer("немає параметрів\n" + command_usage)
+        return
+
+    try:
+        (
+            spreadsheet_url,
+            sheet_name,
+            group_index_row,
+            days_col,
+            time_interval_col,
+            group_indexes_start_col,
+        ) = command.args.split(" ")
+    except ValueError:
+        await message.answer("неправильний формат команди\n" + command_usage)
+        return
+
+    schedules_dictionary: dict[str, ScheduleDict] = fetch_schedules_dictionary(
+        config.google_credentials,
+        spreadsheet_url,
+        sheet_name,
+        int(group_index_row) - 1,
+        utils.char_to_num(days_col) - 1,
+        utils.char_to_num(time_interval_col) - 1,
+        utils.char_to_num(group_indexes_start_col) - 1,
+    )
+
+    generated_schedule_repository = GeneratedScheduleRepository()
+    async with generated_schedule_repository:
+        for group_index, schedule_dict in schedules_dictionary.items():
+            schedules = process_schedule_dictionary(schedule_dict)
+            try:
+                await generated_schedule_repository.upsert_schedule(
+                    group_index, "верхній", schedules[0]
+                )
+                await generated_schedule_repository.upsert_schedule(
+                    group_index, "нижній", schedules[1]
+                )
+            except Exception as e:
+                logging.error(e)
+                await message.answer("Упс, щось пішло не так")
+                return
+
+    await message.answer("Розклади успішно додано в базу даних")
