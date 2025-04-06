@@ -1,6 +1,7 @@
 import logging
 
 from aiogram import Router, F
+from aiogram.enums import ParseMode
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
@@ -11,17 +12,26 @@ from exceptions import ScheduleNotFoundError, SameScheduleError
 from keyboards.chat_choice import chat_choice_keyboard
 from keyboards.schedule_choice import schedule_type_choice_keyboard
 from models import UserModel
-from repositories import UserRepository, ChatRepository
-from repositories.schedule_repository import ScheduleRepository
+from repositories import (
+    UserRepository,
+    ChatRepository,
+    ScheduleRepository,
+    GeneratedScheduleRepository,
+)
 from scheduler.jobs import update_schedule_message_in_specific_chat_job
 
 router = Router()
 
 
-class ChooseScheduleType(StatesGroup):
+class AddSchedule(StatesGroup):
     choosing_chat = State()
     choosing_schedule_type = State()
     sending_schedule = State()
+
+
+class GetSchedule(StatesGroup):
+    entering_group_index = State()
+    choosing_schedule_type = State()
 
 
 @router.message(StateFilter(None), Command("add_update_schedule"))
@@ -63,10 +73,10 @@ async def cmd_add_schedule(message: Message, state: FSMContext):
             "В якому чаті ви бажаєте додати/оновити розклад?",
             reply_markup=chat_choice_keyboard(user_chat_names),
         )
-        await state.set_state(ChooseScheduleType.choosing_chat)
+        await state.set_state(AddSchedule.choosing_chat)
 
 
-@router.message(ChooseScheduleType.choosing_chat, F.text)
+@router.message(AddSchedule.choosing_chat, F.text)
 async def choose_schedule_type(message: Message, state: FSMContext):
     await message.answer(f'Ви обрали чат "{message.text}"')
     await state.update_data(chosen_chat_name=message.text)
@@ -79,12 +89,10 @@ async def choose_schedule_type(message: Message, state: FSMContext):
         "Який розклад ви бажаєте додати/оновити?",
         reply_markup=schedule_type_choice_keyboard(schedule_types),
     )
-    await state.set_state(ChooseScheduleType.choosing_schedule_type)
+    await state.set_state(AddSchedule.choosing_schedule_type)
 
 
-@router.message(
-    ChooseScheduleType.choosing_schedule_type, F.text.in_(["нижній", "верхній"])
-)
+@router.message(AddSchedule.choosing_schedule_type, F.text.in_(["нижній", "верхній"]))
 async def enter_schedule(message: Message, state: FSMContext):
     await state.update_data(chosen_schedule_type=message.text.lower())
     await message.answer(
@@ -92,10 +100,10 @@ async def enter_schedule(message: Message, state: FSMContext):
         f"Тепер надішліть розклад у вигляді повідомлення",
         reply_markup=ReplyKeyboardRemove(),
     )
-    await state.set_state(ChooseScheduleType.sending_schedule)
+    await state.set_state(AddSchedule.sending_schedule)
 
 
-@router.message(ChooseScheduleType.sending_schedule, F.text)
+@router.message(AddSchedule.sending_schedule, F.text)
 async def response(message: Message, state: FSMContext):
     user_data = await state.get_data()
 
@@ -171,3 +179,48 @@ async def cmd_send_schedule(message: Message):
         await chat_repository.add_update_schedule_message_to_edit_id(
             bot_message.message_id, message.chat.id
         )
+
+
+@router.message(StateFilter(None), Command("get_schedule"))
+async def cmd_get_schedule(message: Message, state: FSMContext):
+    await message.answer("Введіть назву своєї групи (наприклад, К-16)")
+
+    await state.set_state(GetSchedule.entering_group_index)
+
+
+@router.message(GetSchedule.entering_group_index)
+async def choose_schedule_type_2(message: Message, state: FSMContext):
+    await state.update_data(group_index=message.text)
+
+    schedule_repository = ScheduleRepository()
+    async with schedule_repository:
+        schedule_types = await schedule_repository.get_schedule_types()
+
+    await message.answer(
+        "Який розклад ви хочете отримати?",
+        reply_markup=schedule_type_choice_keyboard(schedule_types),
+    )
+
+    await state.set_state(GetSchedule.choosing_schedule_type)
+
+
+@router.message(GetSchedule.choosing_schedule_type)
+async def return_schedule(message: Message, state: FSMContext):
+    await state.update_data(schedule_type=message.text)
+    user_data = await state.get_data()
+
+    generated_schedule_repository = GeneratedScheduleRepository()
+    async with generated_schedule_repository:
+        try:
+            schedule = await generated_schedule_repository.get_schedule(
+                user_data["group_index"], user_data["schedule_type"]
+            )
+        except ScheduleNotFoundError as e:
+            await message.answer(
+                "Упс, щось пішло не так", reply_markup=ReplyKeyboardRemove()
+            )
+            await state.clear()
+            return
+
+    await message.answer(schedule.schedule, parse_mode=ParseMode.MARKDOWN_V2)
+    await state.clear()
