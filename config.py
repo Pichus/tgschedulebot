@@ -1,4 +1,5 @@
 import os
+import json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,3 +12,4 @@ cron_hour = int(os.getenv("CRON_HOUR"))
 cron_minute = int(os.getenv("CRON_MINUTE"))
 cron_timezone = os.getenv("CRON_TIMEZONE")
 admin_user_ids = list(map(int, os.getenv("ADMIN_USER_IDS").split(", ")))
+google_credentials = json.loads(os.getenv("GOOGLE_CREDENTIALS"))
