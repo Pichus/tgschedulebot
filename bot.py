@@ -11,8 +11,9 @@ from pytz import timezone
 import config
 from bot_instance import BotSingleton
 from handlers import commands, schedule, admin
-from scheduler import edit_schedule_messages_in_all_chats_job, CronDate
+from scheduler import edit_schedule_messages_in_all_chats_job
 from utils import convert_cron_date_to_utc
+from models import CronDate
 
 
 async def main():
