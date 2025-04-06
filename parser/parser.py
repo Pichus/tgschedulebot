@@ -5,45 +5,77 @@ from typing import Any, TypeAlias
 import gspread
 import requests
 from google.oauth2.service_account import Credentials
+from gspread import Client
+import logging
+from gspread.utils import extract_id_from_url
+
+import config
 
 # dict[day, dict[time_interval, list["subject1", "subject2", ...]]]
 ScheduleDict: TypeAlias = dict[str, dict[str, list[str]]]
 
-spreadsheet_id = "1kfdlUUWgZ9PKdL4oqJi-Og_Bz--ll-hF2yYgpfrxF4U"
-sheet_name = "бакалаври"
 
-scopes = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive",
-]
+def get_spreadsheet_merges_info(
+    client: Client, sheet_id: str, sheet_name: str
+) -> list[dict[str, int]]:
+    try:
+        client.open_by_key(
+            sheet_id
+        )  # weird but required, without it the auth token is just empty
+    except Exception as e:
+        logging.error("Failed to open spreadsheet: %s", e)
+        return []
 
-credentials = Credentials.from_service_account_file("./credentials.json", scopes=scopes)
+    access_token = client.http_client.auth.token
+    url = (
+        "https://sheets.googleapis.com/v4/spreadsheets/"
+        + sheet_id
+        + "?fields=sheets&ranges="
+        + sheet_name
+    )
 
-client = gspread.authorize(credentials)
+    try:
+        res = requests.get(
+            url, headers={"Authorization": "Bearer " + access_token}, timeout=20
+        )
+        res.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logging.error("Failed to fetch spreadsheet merges info: %s", e)
+        return []
 
-client.open_by_key(spreadsheet_id)
+    obj = res.json()
 
-access_token = client.http_client.auth.token
-url = (
-    "https://sheets.googleapis.com/v4/spreadsheets/"
-    + spreadsheet_id
-    + "?fields=sheets&ranges="
-    + sheet_name
-)
-res = requests.get(url, headers={"Authorization": "Bearer " + access_token})
-obj = res.json()
+    sheets = obj.get("sheets")
+    if not sheets:
+        return []
 
-sheet = client.open_by_key(spreadsheet_id)
-worksheet = sheet.worksheet(sheet_name)
+    merges = sheets[0].get("merges")
+    if not merges:
+        return []
 
-values = worksheet.get_all_values()
+    return obj["sheets"][0]["merges"]
 
 
-def apply_merges(sheet_values: list[list], sheet_metadata: dict[str, Any]) -> None:
-    if not "merges" in sheet_metadata.keys():
-        return
+def get_spreadsheet_cell_values(
+    client: Client, spreadsheet_url: str, sheet_name: str
+) -> list[list[str]]:
+    sheet = client.open_by_url(spreadsheet_url)
+    worksheet = sheet.worksheet(sheet_name)
+    sheet_values = worksheet.get_all_values()
 
-    for merge in sheet_metadata["merges"]:
+    merges_info = get_spreadsheet_merges_info(
+        client, extract_id_from_url(spreadsheet_url), sheet_name
+    )
+
+    apply_merges(sheet_values, merges_info)
+
+    return sheet_values
+
+
+def apply_merges(
+    sheet_values: list[list], sheet_metadata: list[dict[str, int]]
+) -> None:
+    for merge in sheet_metadata:
         rows = len(sheet_values)
         if rows < merge["endRowIndex"]:
             for i in range(0, merge["endRowIndex"] - rows):
@@ -58,7 +90,6 @@ def apply_merges(sheet_values: list[list], sheet_metadata: dict[str, Any]) -> No
                 ]
 
 
-# TODO make the code more readable
 def format_subject_string(string_to_format: str, time_interval: str) -> str:
     time_interval = time_interval.replace("\n", "")
     if string_to_format == "empty_subject":
@@ -98,10 +129,6 @@ def format_subject_string(string_to_format: str, time_interval: str) -> str:
     result_lines.append("\n")
 
     return "".join(result_lines)
-
-
-def char_to_num(char: str) -> int:
-    return ord(char.lower()) - 96
 
 
 def get_group_indexes(
@@ -165,6 +192,41 @@ def get_all_schedules(
     return result_dict
 
 
+def fetch_schedules_dictionary(
+    credentials_json,
+    spreadsheet_url: str,
+    sheet_name: str,
+    group_indexes_row,
+    days_col,
+    time_interval_col,
+    group_indexes_start_col,
+) -> dict[str, ScheduleDict]:
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    client = gspread.service_account_from_dict(credentials_json, scopes=scopes)
+
+    values = get_spreadsheet_cell_values(
+        client,
+        spreadsheet_url,
+        sheet_name,
+    )
+
+    apply_merges(
+        values,
+        get_spreadsheet_merges_info(
+            client, extract_id_from_url(spreadsheet_url), sheet_name
+        ),
+    )
+
+    schedules_dictionary = get_all_schedules(
+        values, group_indexes_row, days_col, time_interval_col, group_indexes_start_col
+    )
+
+    return schedules_dictionary
+
+
 def process_schedule_dictionary(
     schedule_dict: ScheduleDict,
 ) -> tuple[str, str]:
@@ -195,12 +257,3 @@ def process_schedule_dictionary(
                     result.append(format_subject_string(subjects[0], time))
 
     return "".join(results[0]), "".join(results[1])
-
-
-def main():
-    apply_merges(values, obj["sheets"][0])
-    all_schedules = get_all_schedules(values, 1, 0, 1, 2)
-    print(process_schedule_dictionary(all_schedules["К-16"])[1])
-
-
-main()
