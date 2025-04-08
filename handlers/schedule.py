@@ -8,9 +8,10 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, ReplyKeyboardRemove
 
 import utils
-from exceptions import ScheduleNotFoundError, SameScheduleError
+from exceptions import ScheduleNotFoundError
 from keyboards.chat_choice import chat_choice_keyboard
 from keyboards.schedule_choice import schedule_type_choice_keyboard
+from keyboards.yes_or_no_choice import yer_or_no_keyboard
 from models import UserModel
 from repositories import (
     UserRepository,
@@ -27,6 +28,9 @@ router = Router()
 class AddScheduleStatesGroup(StatesGroup):
     choosing_chat = State()
     choosing_schedule_type = State()
+    choosing_generated_or_custom = State()
+    chose_custom = State()
+    entering_group_index = State()
     sending_schedule = State()
 
 
@@ -36,7 +40,7 @@ class GetScheduleStatesGroup(StatesGroup):
 
 
 @router.message(StateFilter(None), Command("add_update_schedule"))
-async def cmd_add_schedule(message: Message, state: FSMContext):
+async def cmd_add_update_schedule(message: Message, state: FSMContext):
     user_chat_names: list[str] = []
 
     user_repository = UserRepository()
@@ -77,26 +81,109 @@ async def cmd_add_schedule(message: Message, state: FSMContext):
         await state.set_state(AddScheduleStatesGroup.choosing_chat)
 
 
-@router.message(AddScheduleStatesGroup.choosing_chat, F.text)
-async def choose_schedule_type(message: Message, state: FSMContext):
-    await message.answer(f'Ви обрали чат "{message.text}"')
+@router.message(AddScheduleStatesGroup.choosing_chat)
+async def add_update_schedule_choose_custom_or_generated(
+    message: Message, state: FSMContext
+):
     await state.update_data(chosen_chat_name=message.text)
+    await message.answer(
+        f'Ви обрали чат "{message.text}"\n'
+        f"Бажаєте додати у свій чат автоматично згенерований розклад?",
+        reply_markup=yer_or_no_keyboard(),
+    )
+    await state.set_state(AddScheduleStatesGroup.choosing_generated_or_custom)
 
-    schedule_repository = ScheduleRepository()
-    async with schedule_repository:
-        schedule_types = await schedule_repository.get_schedule_types()
+
+@router.message(
+    AddScheduleStatesGroup.choosing_generated_or_custom,
+    F.text.in_(["Так", "Ні"]),
+)
+async def add_update_schedule_enter_group_index(message: Message, state: FSMContext):
+    if message.text == "Ні":
+        await message.answer(
+            "Ви обрали додати власний розклад", reply_markup=ReplyKeyboardRemove()
+        )
+        schedule_repository = ScheduleRepository()
+        async with schedule_repository:
+            schedule_types = await schedule_repository.get_schedule_types()
+
+        await message.answer(
+            "Який розклад ви бажаєте додати/оновити?",
+            reply_markup=schedule_type_choice_keyboard(schedule_types),
+        )
+        await state.set_state(AddScheduleStatesGroup.choosing_schedule_type)
+        return
 
     await message.answer(
-        "Який розклад ви бажаєте додати/оновити?",
-        reply_markup=schedule_type_choice_keyboard(schedule_types),
+        "Введіть назву вашої групи (наприклад, К228, К-228 або к228)",
+        reply_markup=ReplyKeyboardRemove(),
     )
-    await state.set_state(AddScheduleStatesGroup.choosing_schedule_type)
+    await state.set_state(AddScheduleStatesGroup.entering_group_index)
+
+
+@router.message(AddScheduleStatesGroup.entering_group_index, F.text)
+async def add_update_schedule_final_response_generated(
+    message: Message, state: FSMContext
+):
+    user_data = await state.get_data()
+    group_index = parse_group_index(message.text)
+
+    generated_schedule_repository = GeneratedScheduleRepository()
+    async with generated_schedule_repository:
+        try:
+            high_schedule = await generated_schedule_repository.get_schedule(
+                group_index, "верхній"
+            )
+            low_schedule = await generated_schedule_repository.get_schedule(
+                group_index, "нижній"
+            )
+        except ScheduleNotFoundError:
+            await message.answer(
+                "Упс, щось пішло не так", reply_markup=ReplyKeyboardRemove()
+            )
+            await state.clear()
+            return
+
+    schedule_repository = ScheduleRepository()
+    chat_repository = ChatRepository()
+
+    async with chat_repository:
+        chat_telegram_id = (
+            await chat_repository.get_chat_telegram_id_by_name_and_user_telegram_id(
+                user_data["chosen_chat_name"], message.from_user.id
+            )
+        )
+
+    async with schedule_repository:
+        await schedule_repository.upsert_schedule(
+            chat_telegram_id, "верхній", high_schedule.schedule
+        )
+        await schedule_repository.upsert_schedule(
+            chat_telegram_id, "нижній", low_schedule.schedule
+        )
+
+    await message.answer("Успішно додано розклад")
+
+    await message.answer("Верхній розклад:")
+    await message.answer(
+        high_schedule.schedule,
+        parse_mode=ParseMode.HTML,
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    await message.answer("Нижній розклад:")
+    await message.answer(
+        low_schedule.schedule,
+        parse_mode=ParseMode.HTML,
+        reply_markup=ReplyKeyboardRemove(),
+    )
+
+    await state.clear()
 
 
 @router.message(
     AddScheduleStatesGroup.choosing_schedule_type, F.text.in_(["нижній", "верхній"])
 )
-async def enter_schedule(message: Message, state: FSMContext):
+async def add_update_schedule_enter_schedule_text(message: Message, state: FSMContext):
     await state.update_data(chosen_schedule_type=message.text.lower())
     await message.answer(
         f"Ви обрали {message.text.lower()} розклад. "
@@ -107,7 +194,9 @@ async def enter_schedule(message: Message, state: FSMContext):
 
 
 @router.message(AddScheduleStatesGroup.sending_schedule, F.text)
-async def add_schedule_final_response(message: Message, state: FSMContext):
+async def add_update_schedule_final_response_custom(
+    message: Message, state: FSMContext
+):
     user_data = await state.get_data()
 
     schedule_repository = ScheduleRepository()
@@ -121,10 +210,6 @@ async def add_schedule_final_response(message: Message, state: FSMContext):
         )
 
     async with schedule_repository:
-        previous_schedule = await schedule_repository.get_schedule(
-            chat_telegram_id, user_data["chosen_schedule_type"]
-        )
-
         await schedule_repository.upsert_schedule(
             chat_telegram_id,
             user_data["chosen_schedule_type"],
@@ -176,7 +261,9 @@ async def cmd_send_schedule(message: Message):
                 return
 
         bot_message = await message.answer(
-            schedule.schedule, entities=schedule.message_entities
+            schedule.schedule,
+            entities=schedule.message_entities,
+            parse_mode=ParseMode.HTML,
         )
         await chat_repository.add_update_schedule_message_to_edit_id(
             bot_message.message_id, message.chat.id

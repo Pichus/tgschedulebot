@@ -35,7 +35,7 @@ class ScheduleRepository(RepositoryBase):
         chat_telegram_id: int,
         schedule_type: str,
         schedule: str,
-        message_entities: list[MessageEntity],
+        message_entities: list[MessageEntity] = None,
     ) -> None:
         message_entities_json = utils.message_entities_to_json_string(message_entities)
         query = sql.SQL(
