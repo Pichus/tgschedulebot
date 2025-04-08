@@ -90,8 +90,19 @@ def apply_merges(
                 ]
 
 
+def format_time_interval(time: str) -> str:
+    time = time.replace("\n", "")
+    time_intervals = time.split(" ")
+    first_timestamp = time_intervals[0].split("-")
+    second_timestamp = time_intervals[1].split("-")
+
+    time_interval = first_timestamp[0] + "-" + second_timestamp[1]
+
+    return time_interval
+
+
 def format_subject_string(string_to_format: str, time_interval: str) -> str:
-    time_interval = time_interval.replace("\n", "")
+    time_interval = format_time_interval(time_interval)
     if string_to_format == "empty_subject":
         return f"<b>{time_interval}</b>\n💤💤💤\n\n"
 
@@ -120,9 +131,8 @@ def format_subject_string(string_to_format: str, time_interval: str) -> str:
     if len(teacher_names) == len(classroom_numbers):
         for teacher_name, classroom_number in zip(teacher_names, classroom_numbers):
             space_count = longest_teacher_name_len - len(teacher_name)
-            SPACE = " " + "\u200b"
             result_lines.append(
-                f"•{teacher_name} {SPACE * space_count}{classroom_number} каб.\n"
+                f"•{teacher_name} {" " * space_count}{classroom_number} каб.\n"
             )
     elif len(teacher_names) > 0:
         result_lines.append(f"•{teacher_names[0]}\n")
