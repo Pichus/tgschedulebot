@@ -9,6 +9,15 @@ from pytz import timezone
 from models import CronDate
 
 
+def parse_group_index(group_index: str) -> str:
+    group_index = group_index.upper()
+    for i in range(1, len(group_index)):
+        if group_index[i].isdigit() and group_index[i - 1].isalpha():
+            group_index = group_index[:i] + "-" + group_index[i:]
+
+    return group_index
+
+
 def char_to_num(char: str) -> int:
     return ord(char.lower()) - 96
 
