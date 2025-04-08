@@ -2,11 +2,10 @@ import logging
 
 from aiogram import Router, F
 from aiogram.enums import ParseMode
-from aiogram.filters import Command, StateFilter, CommandObject
+from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, ReplyKeyboardRemove
-from click import group
 
 import utils
 from exceptions import ScheduleNotFoundError, SameScheduleError
@@ -122,6 +121,10 @@ async def add_schedule_final_response(message: Message, state: FSMContext):
         )
 
     async with schedule_repository:
+        previous_schedule = await schedule_repository.get_schedule(
+            chat_telegram_id, user_data["chosen_schedule_type"]
+        )
+
         await schedule_repository.upsert_schedule(
             chat_telegram_id,
             user_data["chosen_schedule_type"],
@@ -132,15 +135,10 @@ async def add_schedule_final_response(message: Message, state: FSMContext):
     if user_data["chosen_schedule_type"] == utils.get_current_week_type():
         try:
             await update_schedule_message_in_specific_chat_job(
-                chat_telegram_id, message.text, message.entities
+                chat_telegram_id,
+                message.text,
+                message.entities,
             )
-        except SameScheduleError:
-            await message.answer(
-                "Схоже, що ви намагаєтесь додати/оновити точно такий самий розклад, який ви вже додали/оновили раніше.\n"
-                "Якщо ви вважаєте, що сталась якась помилка, напишіть розробнику"
-            )
-            await state.clear()
-            return
         except Exception as exception:
             logging.error(f"Error updating message: {exception}")
             await message.answer(
@@ -228,6 +226,3 @@ async def get_schedule_enter_group_index(message: Message, state: FSMContext):
         schedule.schedule, parse_mode=ParseMode.HTML, reply_markup=ReplyKeyboardRemove()
     )
     await state.clear()
-
-
-
