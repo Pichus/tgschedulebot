@@ -19,19 +19,18 @@ def get_spreadsheet_merges_info(
     client: Client, sheet_id: str, sheet_name: str
 ) -> list[dict[str, int]]:
     try:
-        client.open_by_key(
-            sheet_id
-        )  # weird but required, without it the auth token is just empty
+        client.http_client.login()
     except Exception as e:
-        logging.error("Failed to open spreadsheet: %s", e)
+        logging.error("Failed to login: %s", e)
         return []
 
     access_token = client.http_client.auth.token
     url = (
         "https://sheets.googleapis.com/v4/spreadsheets/"
         + sheet_id
-        + "?fields=sheets&ranges="
+        + "?ranges="
         + sheet_name
+        + "&fields=sheets.merges"
     )
 
     try:
