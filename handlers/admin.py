@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+import gspread
 from aiogram import Router, F
 from aiogram.exceptions import AiogramError
 from aiogram.filters import Command, StateFilter, CommandObject
@@ -11,6 +12,8 @@ from aiogram.types import Message
 import config
 import utils
 from parser import fetch_schedules_dictionary, ScheduleDict, process_schedule_dictionary
+from parser.parser import get_links_matrix
+from parser.sheet_links_experiment import apply_merges
 from repositories import UserRepository, GeneratedScheduleRepository
 
 admin_router = Router()
@@ -91,10 +94,22 @@ async def cmd_generate_schedule(message: Message, command: CommandObject):
         utils.char_to_num(group_indexes_start_col) - 1,
     )
 
+    links_matrix = get_links_matrix(
+        config.google_credentials, spreadsheet_url, sheet_name
+    )
+    client = gspread.service_account_from_dict(
+        config.google_credentials,
+        scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
+    )
+    metadata = client.http_client.fetch_sheet_metadata(
+        gspread.utils.extract_id_from_url(spreadsheet_url)
+    )["sheets"][0]["merges"]
+    apply_merges(links_matrix, metadata)
+
     generated_schedule_repository = GeneratedScheduleRepository()
     async with generated_schedule_repository:
         for group_index, schedule_dict in schedules_dictionary.items():
-            schedules = process_schedule_dictionary(schedule_dict)
+            schedules = process_schedule_dictionary(schedule_dict, links_matrix)
             try:
                 await generated_schedule_repository.upsert_schedule(
                     group_index, "верхній", schedules[0]

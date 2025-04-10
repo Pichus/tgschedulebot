@@ -5,6 +5,7 @@ from typing import Any, TypeAlias
 import gspread
 import requests
 from google.oauth2.service_account import Credentials
+from google.protobuf.any import type_name
 from gspread import Client
 import logging
 from gspread.utils import extract_id_from_url
@@ -12,7 +13,7 @@ from gspread.utils import extract_id_from_url
 import config
 
 # dict[day, dict[time_interval, list["subject1", "subject2", ...]]]
-ScheduleDict: TypeAlias = dict[str, dict[str, list[str]]]
+ScheduleDict: TypeAlias = dict[str, dict[str, list[tuple[str, tuple[int, int]]]]]
 
 
 def get_spreadsheet_merges_info(
@@ -53,6 +54,30 @@ def get_spreadsheet_merges_info(
         return []
 
     return obj["sheets"][0]["merges"]
+
+
+def get_spreadsheet_format_info(client: Client, sheet_id: str, sheet_name: str):
+    client.http_client.login()
+
+    url = (
+        "https://sheets.googleapis.com/v4/spreadsheets/"
+        + sheet_id
+        + "?ranges="
+        + sheet_name
+        + "&fields=sheets.data.rowData.values.effectiveValue,sheets.data.rowData.values.textFormatRuns"
+    )
+
+    res = requests.get(
+        url,
+        headers={"Authorization": "Bearer " + client.http_client.auth.token},
+        timeout=10,
+    )
+
+    data = res.json()
+
+    rows = data["sheets"][0]["data"][0]["rowData"]
+
+    return rows
 
 
 def get_spreadsheet_cell_values(
@@ -100,10 +125,14 @@ def format_time_interval(time: str) -> str:
     return time_interval
 
 
-def format_subject_string(string_to_format: str, time_interval: str) -> str:
+def format_subject_string(
+    string_to_format: str, time_interval: str, link_info: dict
+) -> str:
     time_interval = format_time_interval(time_interval)
     if string_to_format == "empty_subject":
         return f"<b>{time_interval}</b>\n💤💤💤\n\n"
+
+    teacher_names = re.findall(r"((?:ас[.]|доц[.]|пр[.])\s*?\w+)", string_to_format)
 
     string_to_format = re.sub(r"\s+", " ", string_to_format)
     string_to_format = re.sub(
@@ -115,7 +144,6 @@ def format_subject_string(string_to_format: str, time_interval: str) -> str:
     string_to_format = re.sub(r"\(.+год", "", string_to_format)
 
     classroom_numbers = re.findall(r"\d+", string_to_format)
-    teacher_names = re.findall(r"(?:ас[.]|доц[.]|пр[.])\s*?(\w+)", string_to_format)
 
     result_lines: list[str] = [f"<b>{time_interval}</b>\n"]
 
@@ -129,9 +157,16 @@ def format_subject_string(string_to_format: str, time_interval: str) -> str:
 
     if len(teacher_names) == len(classroom_numbers):
         for teacher_name, classroom_number in zip(teacher_names, classroom_numbers):
+            link = ""
             space_count = longest_teacher_name_len - len(teacher_name)
+
+            if link_info and "link_is_on_subject" in link_info:
+                if link_info["link_is_on_subject"]:
+                    link = link_info["subject_link"]
+                else:
+                    link = link_info["teacher_names"].get(teacher_name, "")
             result_lines.append(
-                f"•{teacher_name} {" " * space_count}{classroom_number} каб.\n"
+                f"•[{teacher_name}]({link}) {" " * space_count}{classroom_number} каб.\n"
             )
     elif len(teacher_names) > 0:
         result_lines.append(f"•{teacher_names[0]}\n")
@@ -176,15 +211,19 @@ def get_all_schedules(
         for day in days:
             result_dict[group_index][day] = defaultdict(list)
 
+    row_cord = 0
     for row in arg_values:
         value_day = "".join(row[days_col].split()).lower()
 
         if value_day not in days:
+            row_cord += 1
             continue
 
+        col_cord = 0
         for col in range(group_indexes_start_col, len(row)):
             group_index = arg_values[group_indexes_row][col]
             if group_index not in group_indexes:
+                col_cord += 1
                 continue
 
             subject = row[col]
@@ -195,9 +234,16 @@ def get_all_schedules(
             time_interval = row[time_interval_col]
 
             if (time_interval not in result_dict[group_index][value_day]) or (
-                subject not in result_dict[group_index][value_day][time_interval]
+                [subject, [row_cord, col]]
+                not in result_dict[group_index][value_day][time_interval][0]
             ):
-                result_dict[group_index][value_day][time_interval].append(subject)
+                result_dict[group_index][value_day][time_interval].append(
+                    [subject, [row_cord, col]]
+                )
+
+            col_cord += 1
+
+        row_cord += 1
 
     return result_dict
 
@@ -237,9 +283,106 @@ def fetch_schedules_dictionary(
     return schedules_dictionary
 
 
+def match_link_with_text(
+    strings_to_compare_with: list[str], cell_text: str, link_start_index: int
+) -> str:
+    for teacher in strings_to_compare_with:
+        if teacher.startswith(
+            cell_text[link_start_index : link_start_index + len(teacher)].strip()
+        ):
+            return teacher
+
+    return ""
+
+
+def retrieve_subject(cell_text: str) -> str:
+    result = re.sub(r"\s+", " ", cell_text)
+    result = re.sub(r"\d\s?п/г", "", result)
+    result = re.findall(r"(^.+?)(?:\()", result)
+
+    if not result:
+        return ""
+
+    return result[0]
+
+
+def get_teachers(cell_string: str) -> list[str]:
+    teacher_names = re.findall(r"((?:ас[.]|доц[.]|пр[.])\s*?\w+)", cell_string)
+
+    return teacher_names
+
+
+def get_links_matrix(
+    credentials_json, spreadsheet_url: str, range_: str
+) -> list[list[str]]:
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ]
+    client = gspread.service_account_from_dict(credentials_json, scopes=scopes)
+    rows = get_spreadsheet_format_info(
+        client, extract_id_from_url(spreadsheet_url), range_
+    )
+
+    values = [[] for _ in range(len(rows))]
+
+    row_cord = 0
+    for row in rows:
+        if not row.get("values"):
+            row_cord += 1
+            continue
+
+        values[row_cord] = [{} for _ in range(len(row["values"]))]
+
+        col_cord = 0
+        for col in row["values"]:
+            if not col.get("textFormatRuns"):
+                col_cord += 1
+                continue
+
+            for text_format_run in col["textFormatRuns"]:
+                if not text_format_run["format"].get("link"):
+                    continue
+
+                link_is_on_subject = True
+                cell_text = col["effectiveValue"]["stringValue"]
+                teachers = get_teachers(cell_text)
+                subject = retrieve_subject(cell_text)
+
+                start_index = 0
+                strings_to_compare_with = []
+
+                if text_format_run.get("startIndex", []):
+                    strings_to_compare_with = teachers
+                    start_index = int(text_format_run["startIndex"])
+                    link_is_on_subject = False
+
+                values[row_cord][col_cord]["link_is_on_subject"] = link_is_on_subject
+                values[row_cord][col_cord]["subject"] = subject if subject else ""
+
+                if not values[row_cord][col_cord].get("teacher_names", []):
+                    values[row_cord][col_cord]["teacher_names"] = {}
+
+                link = text_format_run["format"]["link"]["uri"]
+                if link_is_on_subject:
+                    values[row_cord][col_cord]["subject_link"] = link
+                else:
+                    teacher_name = match_link_with_text(
+                        strings_to_compare_with, cell_text, start_index
+                    )
+                    values[row_cord][col_cord]["teacher_names"][teacher_name] = link
+
+            col_cord += 1
+
+        row_cord += 1
+
+    return values
+
+
 def process_schedule_dictionary(
-    schedule_dict: ScheduleDict,
+    schedule_dict: ScheduleDict, links_matrix: list[list[dict]]
 ) -> tuple[str, str]:
+    # print(links_matrix)
     results: tuple[list[str], list[str]] = ([], [])
 
     results[0].append("Розклад <b>ВЕРХНІЙ</b>\n\n")
@@ -261,9 +404,33 @@ def process_schedule_dictionary(
 
             if len(subjects) > 1:
                 for count, result in enumerate(results):
-                    result.append(format_subject_string(subjects[count], time))
+                    subject = subjects[count][0]
+                    x = subjects[count][1][0]
+                    y = subjects[count][1][1]
+                    try:
+                        result.append(
+                            format_subject_string(subject, time, links_matrix[x][y])
+                        )
+                    except IndexError as e:
+                        print("HELP-----------------------------------------------")
+                        print(f"x = {x} y = {y}")
+                        print(f"len 1 = {len(links_matrix)}")
+                        print(f"len 2 = {len(links_matrix[x])}")
+                        print("HELP-----------------------------------------------")
             else:
                 for result in results:
-                    result.append(format_subject_string(subjects[0], time))
+                    subject = subjects[0][0]
+                    x = subjects[0][1][0]
+                    y = subjects[0][1][1]
+                    try:
+                        result.append(
+                            format_subject_string(subject, time, links_matrix[x][y])
+                        )
+                    except IndexError as e:
+                        print("HELP-----------------------------------------------")
+                        print(f"x = {x} y = {y}")
+                        print(f"len 1 = {len(links_matrix)}")
+                        print(f"len 2 = {len(links_matrix[x])}")
+                        print("HELP-----------------------------------------------")
 
     return "".join(results[0]), "".join(results[1])
