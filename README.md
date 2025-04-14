@@ -18,6 +18,7 @@ https://t.me/fcsc_schedulebot
 - Supports multiple chats, schedules, and schedule types
 - Automatically updates the schedule message every week
 - Ensures stable schedule updates by storing CRON jobs in a PostgreSQL database
+- Generates schedules directly from a Google Spreadsheet
 
 ## Run Locally
 
@@ -39,14 +40,15 @@ https://t.me/fcsc_schedulebot
 
 4. To run this project, add the following environment variables to your .env file (use .env.example as a reference):
     ``` env
-    TELEGRAM_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11 // your telegram bot token retrieved from botfather
+    TELEGRAM_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11 # your telegram bot token retrieved from botfather
     DATABASE_CONNECTION_STRING="host=localhost port=5432 dbname=mydb user=some_user password=somepassword"
     DATABASE_URL_="postgresql+psycopg://user:password@localhost:5432/database_name"
-    CRON_DAY_OF_WEEK=0 // int 0-6
-    CRON_HOUR = 0      // int 0-23
-    CRON_MINUTE = 0    // int 0-59
-    CRON_TIMEZONE = "Europe/Kyiv" // https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-    ADMIN_USER_IDS = "12345678910, 932483203, 2347234983" // telegram user ids of admins separated with commas; use https://t.me/userinfobot to get your user id
+    CRON_DAY_OF_WEEK=0 # int 0-6
+    CRON_HOUR = 0      # int 0-23
+    CRON_MINUTE = 0    # int 0-59
+    CRON_TIMEZONE = "Europe/Kyiv" # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+    ADMIN_USER_IDS = "12345678910, 932483203, 2347234983" # telegram user ids of admins separated with commas; use https://t.me/userinfobot to get your user id
+    GOOGLE_CREDENTIALS = ... # paste your service account credentials json as a single line
     ```
 
 5. Ensure Docker and Docker Compose are installed, then start the bot:
@@ -63,9 +65,9 @@ The bot is designed for deployment on Heroku, but it can be deployed on other pl
 
 ## Roadmap
 
-- Improve code quality and maintainability
+- [ ] Improve code quality and maintainability
 
-- Add a feature for automatically fetching schedules from a Google Spreadsheet
+- [X] Add a feature for automatically fetching schedules from a Google Spreadsheet
 
 ## License
 
