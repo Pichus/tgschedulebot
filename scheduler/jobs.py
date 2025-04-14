@@ -2,8 +2,8 @@ import asyncio
 import logging
 from datetime import datetime
 
-from aiogram.client.bot import Bot
 import psycopg
+from aiogram.client.bot import Bot
 from aiogram.exceptions import AiogramError
 from aiogram.types import MessageEntity
 from pytz import timezone
@@ -11,7 +11,6 @@ from pytz import timezone
 import config
 import utils
 from bot_instance import BotSingleton
-from exceptions import SameScheduleError
 from models import ScheduleModel, ChatModel
 from repositories import ScheduleRepository, ChatRepository
 

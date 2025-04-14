@@ -1,4 +1,3 @@
-
 # tgschedulebot
 
 Telegram bot for automatically updating a telegram message containing a schedule according to week pairity.
@@ -7,13 +6,12 @@ https://t.me/fcsc_schedulebot
 
 ![Logo](https://raw.githubusercontent.com/Pichus/tgschedulebot/refs/heads/main/bot.png)
 
-
 ## Tech Stack
 
-- **Python 3.13.3**  
-- **Aiogram**  
-- **PostgreSQL**  
-- **Docker**  
+- **Python 3.13.3**
+- **Aiogram**
+- **PostgreSQL**
+- **Docker**
 
 ## Features
 
@@ -25,7 +23,7 @@ https://t.me/fcsc_schedulebot
 
 1. Create a Telegram bot
 
-    Use [BotFather](https://core.telegram.org/bots/tutorial#obtain-your-bot-token) to create a bot and obtain a token.
+   Use [BotFather](https://core.telegram.org/bots/tutorial#obtain-your-bot-token) to create a bot and obtain a token.
 
 2. Clone the project
 
@@ -63,13 +61,11 @@ Now the bot should be up and running
 
 The bot is designed for deployment on Heroku, but it can be deployed on other platforms as well.
 
-
 ## Roadmap
 
 - Improve code quality and maintainability
 
 - Add a feature for automatically fetching schedules from a Google Spreadsheet
-
 
 ## License
 

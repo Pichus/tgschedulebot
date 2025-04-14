@@ -2,7 +2,7 @@ import logging
 
 from aiogram import Router, F
 from aiogram.enums import ParseMode
-from aiogram.filters import Command, StateFilter
+from aiogram.filters import StateFilter, Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, ReplyKeyboardRemove
@@ -15,9 +15,9 @@ from keyboards.yes_or_no_choice import yer_or_no_keyboard
 from models import UserModel
 from repositories import (
     UserRepository,
-    ChatRepository,
     ScheduleRepository,
     GeneratedScheduleRepository,
+    ChatRepository,
 )
 from scheduler.jobs import update_schedule_message_in_specific_chat_job
 from utils import parse_group_index
@@ -32,11 +32,6 @@ class AddScheduleStatesGroup(StatesGroup):
     chose_custom = State()
     entering_group_index = State()
     sending_schedule = State()
-
-
-class GetScheduleStatesGroup(StatesGroup):
-    entering_group_index = State()
-    choosing_schedule_type = State()
 
 
 @router.message(StateFilter(None), Command("add_update_schedule"))
@@ -233,83 +228,4 @@ async def add_update_schedule_final_response_custom(
             return
 
     await message.answer("Успішно додано/оновлено розклад")
-    await state.clear()
-
-
-@router.message(Command("send_schedule"))
-async def cmd_send_schedule(message: Message):
-    chat_repository = ChatRepository()
-    async with chat_repository:
-        if not await chat_repository.chat_exists(message.chat.id):
-            await message.answer(
-                "Цього чату немає в базі даних бота. Додайте його командою /add_chat"
-            )
-            return
-
-        current_week_type = utils.get_current_week_type()
-
-        schedule_repository = ScheduleRepository()
-        async with schedule_repository:
-            try:
-                schedule = await schedule_repository.get_schedule(
-                    message.chat.id, current_week_type
-                )
-            except ScheduleNotFoundError:
-                await message.answer(
-                    "Розкладу для цього чату немає в базі даних. Перед надсиланням розкладу ви маєте додати нижній та верхній його варіанти за допомогою команди /add_update_schedule"
-                )
-                return
-
-        bot_message = await message.answer(
-            schedule.schedule,
-            entities=schedule.message_entities,
-            parse_mode=ParseMode.HTML,
-        )
-        await chat_repository.add_update_schedule_message_to_edit_id(
-            bot_message.message_id, message.chat.id
-        )
-
-
-@router.message(StateFilter(None), Command("get_schedule"))
-async def cmd_get_schedule(message: Message, state: FSMContext):
-    await message.answer("Введіть назву вашої групи (наприклад, К228, К-228 або к228)")
-    await state.set_state(GetScheduleStatesGroup.entering_group_index)
-
-
-@router.message(GetScheduleStatesGroup.entering_group_index)
-async def get_schedule_final_response(message: Message, state: FSMContext):
-    await state.update_data(group_index=parse_group_index(message.text))
-
-    schedule_repository = ScheduleRepository()
-    async with schedule_repository:
-        schedule_types = await schedule_repository.get_schedule_types()
-
-    await message.answer(
-        "Який розклад хочете отримати?",
-        reply_markup=schedule_type_choice_keyboard(schedule_types),
-    )
-
-    await state.set_state(GetScheduleStatesGroup.choosing_schedule_type)
-
-
-@router.message(GetScheduleStatesGroup.choosing_schedule_type)
-async def get_schedule_enter_group_index(message: Message, state: FSMContext):
-    user_data = await state.get_data()
-
-    generated_schedule_repository = GeneratedScheduleRepository()
-    async with generated_schedule_repository:
-        try:
-            schedule = await generated_schedule_repository.get_schedule(
-                user_data["group_index"], message.text
-            )
-        except ScheduleNotFoundError:
-            await message.answer(
-                "Упс, щось пішло не так", reply_markup=ReplyKeyboardRemove()
-            )
-            await state.clear()
-            return
-
-    await message.answer(
-        schedule.schedule, parse_mode=ParseMode.HTML, reply_markup=ReplyKeyboardRemove()
-    )
     await state.clear()

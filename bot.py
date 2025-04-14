@@ -10,10 +10,17 @@ from pytz import timezone
 
 import config
 from bot_instance import BotSingleton
-from handlers import commands, schedule, admin
+from handlers import (
+    commands,
+    send_schedule,
+    admin,
+    one_command,
+    add_update_schedule,
+    get_schedule,
+)
+from models import CronDate
 from scheduler import edit_schedule_messages_in_all_chats_job
 from utils import convert_cron_date_to_utc
-from models import CronDate
 
 
 async def main():
@@ -26,13 +33,22 @@ async def main():
             await cur.execute(open("sql/init.sql", "r", encoding="utf-8").read())
 
     bot = BotSingleton(token=os.getenv("TELEGRAM_TOKEN"))
+    await bot.set_my_commands(config.commands_list)
+
     dp = Dispatcher()
 
     jobstores = {"default": SQLAlchemyJobStore(url=config.database_url)}
 
     scheduler = AsyncIOScheduler(timezone=timezone("UTC"), jobstores=jobstores)
 
-    dp.include_routers(schedule.router, commands.router, admin.admin_router)
+    dp.include_routers(
+        send_schedule.router,
+        commands.router,
+        admin.admin_router,
+        one_command.router,
+        add_update_schedule.router,
+        get_schedule.router,
+    )
 
     await bot.delete_webhook(drop_pending_updates=True)
 

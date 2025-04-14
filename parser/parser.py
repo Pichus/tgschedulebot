@@ -1,16 +1,14 @@
+import logging
 import re
 from collections import defaultdict
-from typing import Any, TypeAlias
+from typing import TypeAlias
 
 import gspread
 import requests
-from google.oauth2.service_account import Credentials
-from google.protobuf.any import type_name
 from gspread import Client
-import logging
 from gspread.utils import extract_id_from_url
 
-import config
+from parser.models import SubjectModel
 
 # dict[day, dict[time_interval, list["subject1", "subject2", ...]]]
 ScheduleDict: TypeAlias = dict[str, dict[str, list[tuple[str, tuple[int, int]]]]]
@@ -125,9 +123,31 @@ def format_time_interval(time: str) -> str:
     return time_interval
 
 
+def remove_teacher_prefix(teacher_name: str) -> str:
+    return re.sub(r"(ас[.]|доц[.]|пр[.])\s*", "", teacher_name)
+
+
+def format_teacher_name(teacher_name: str, link_info) -> str:
+    if link_info and ("link_is_on_subject" in link_info):
+        if not link_info["link_is_on_subject"]:
+            link = link_info["teacher_names"].get(teacher_name, "")
+            teacher_name = remove_teacher_prefix(teacher_name)
+            teacher_name = f'<a href="{link}">{teacher_name}</a>'
+        else:
+            link = link_info["subject_link"]
+            teacher_name = remove_teacher_prefix(teacher_name)
+            teacher_name = f'<a href="{link}">{teacher_name}</a>'
+    else:
+        teacher_name = remove_teacher_prefix(teacher_name)
+
+    return teacher_name
+
+
 def format_subject_string(
-    string_to_format: str, time_interval: str, link_info: dict
+    subject_model: SubjectModel, time_interval: str, links_matrix
 ) -> str:
+    string_to_format = subject_model.text
+
     time_interval = format_time_interval(time_interval)
     if string_to_format == "empty_subject":
         return f"<b>{time_interval}</b>\n💤💤💤\n\n"
@@ -138,38 +158,38 @@ def format_subject_string(
     string_to_format = re.sub(
         r"\d\s?п/г", "", string_to_format
     )  # maybe it should be removed
-    subject_name = re.findall(r"(^.+?)(?:\()", string_to_format)
-    if subject_name:
-        string_to_format = string_to_format.replace(subject_name[0].strip(), "")
+    subject_name_res = re.findall(r"(^.+?)(?:\()", string_to_format)
+
+    if not subject_name_res:
+        return ""
+
+    subject_name = subject_name_res[0].strip()
+
+    string_to_format = string_to_format.replace(subject_name, "")
     string_to_format = re.sub(r"\(.+год", "", string_to_format)
 
     classroom_numbers = re.findall(r"\d+", string_to_format)
 
-    result_lines: list[str] = [f"<b>{time_interval}</b>\n"]
-
-    if subject_name:
-        result_lines.append(subject_name[0].strip() + "\n")
+    result_lines: list[str] = [f"<b>{time_interval}</b>\n", subject_name + "\n"]
 
     longest_teacher_name_len = 0
 
     for teacher_name in teacher_names:
         longest_teacher_name_len = max(len(teacher_name), longest_teacher_name_len)
 
+    link_info = links_matrix[subject_model.row][subject_model.col]
+
     if len(teacher_names) == len(classroom_numbers):
         for teacher_name, classroom_number in zip(teacher_names, classroom_numbers):
-            link = ""
             space_count = longest_teacher_name_len - len(teacher_name)
 
-            if link_info and "link_is_on_subject" in link_info:
-                if link_info["link_is_on_subject"]:
-                    link = link_info["subject_link"]
-                else:
-                    link = link_info["teacher_names"].get(teacher_name, "")
+            teacher_name = format_teacher_name(teacher_name, link_info)
             result_lines.append(
-                f"•[{teacher_name}]({link}) {" " * space_count}{classroom_number} каб.\n"
+                f"•{teacher_name} {" " * space_count}{classroom_number} каб.\n"
             )
     elif len(teacher_names) > 0:
-        result_lines.append(f"•{teacher_names[0]}\n")
+        teacher_name = format_teacher_name(teacher_names[0], link_info)
+        result_lines.append(f"•{teacher_name}\n")
 
     result_lines.append("\n")
 
@@ -219,11 +239,9 @@ def get_all_schedules(
             row_cord += 1
             continue
 
-        col_cord = 0
         for col in range(group_indexes_start_col, len(row)):
             group_index = arg_values[group_indexes_row][col]
             if group_index not in group_indexes:
-                col_cord += 1
                 continue
 
             subject = row[col]
@@ -233,15 +251,12 @@ def get_all_schedules(
 
             time_interval = row[time_interval_col]
 
-            if (time_interval not in result_dict[group_index][value_day]) or (
-                [subject, [row_cord, col]]
-                not in result_dict[group_index][value_day][time_interval][0]
-            ):
-                result_dict[group_index][value_day][time_interval].append(
-                    [subject, [row_cord, col]]
-                )
+            subject_model = SubjectModel(subject, row_cord, col)
 
-            col_cord += 1
+            if (time_interval not in result_dict[group_index][value_day]) or (
+                subject_model not in result_dict[group_index][value_day][time_interval]
+            ):
+                result_dict[group_index][value_day][time_interval].append(subject_model)
 
         row_cord += 1
 
@@ -340,11 +355,14 @@ def get_links_matrix(
                 col_cord += 1
                 continue
 
+            link_is_on_subject = False
             for text_format_run in col["textFormatRuns"]:
-                if not text_format_run["format"].get("link"):
+                if not text_format_run["format"].get("link") or link_is_on_subject:
                     continue
 
-                link_is_on_subject = True
+                if not text_format_run.get("startIndex", []):
+                    link_is_on_subject = True
+
                 cell_text = col["effectiveValue"]["stringValue"]
                 teachers = get_teachers(cell_text)
                 subject = retrieve_subject(cell_text)
@@ -355,7 +373,6 @@ def get_links_matrix(
                 if text_format_run.get("startIndex", []):
                     strings_to_compare_with = teachers
                     start_index = int(text_format_run["startIndex"])
-                    link_is_on_subject = False
 
                 values[row_cord][col_cord]["link_is_on_subject"] = link_is_on_subject
                 values[row_cord][col_cord]["subject"] = subject if subject else ""
@@ -379,10 +396,21 @@ def get_links_matrix(
     return values
 
 
+def debug(x, y, links_matrix, subject, subjects):
+    print("HELP-----------------------------------------------")
+    print(f"x = {x} y = {y}")
+    print(f"len 1 = {len(links_matrix)}")
+    print(f"len 2 = {len(links_matrix[x])}")
+    print(f"subject text = {subject}")
+    print(f"subjects len = {len(subjects)}")
+    print("subjects list = ", sep=None)
+    print(subjects)
+    print("HELP-----------------------------------------------")
+
+
 def process_schedule_dictionary(
     schedule_dict: ScheduleDict, links_matrix: list[list[dict]]
 ) -> tuple[str, str]:
-    # print(links_matrix)
     results: tuple[list[str], list[str]] = ([], [])
 
     results[0].append("Розклад <b>ВЕРХНІЙ</b>\n\n")
@@ -399,38 +427,31 @@ def process_schedule_dictionary(
         time: str
         subjects: list
         for time, subjects in schedule_dict.items():
-            if len(subjects) == 1 and subjects[0] == "empty_subject":
+            if len(subjects) == 1 and subjects[0].text == "empty_subject":
                 continue
 
             if len(subjects) > 1:
                 for count, result in enumerate(results):
-                    subject = subjects[count][0]
-                    x = subjects[count][1][0]
-                    y = subjects[count][1][1]
+                    print(count)
+                    subject = subjects[count]
+                    x = subjects[count].row
+                    y = subjects[count].col
                     try:
                         result.append(
-                            format_subject_string(subject, time, links_matrix[x][y])
+                            format_subject_string(subject, time, links_matrix)
                         )
                     except IndexError as e:
-                        print("HELP-----------------------------------------------")
-                        print(f"x = {x} y = {y}")
-                        print(f"len 1 = {len(links_matrix)}")
-                        print(f"len 2 = {len(links_matrix[x])}")
-                        print("HELP-----------------------------------------------")
+                        debug(x, y, links_matrix, subject.text, subjects)
             else:
                 for result in results:
-                    subject = subjects[0][0]
-                    x = subjects[0][1][0]
-                    y = subjects[0][1][1]
+                    subject = subjects[0]
+                    x = subjects[0].row
+                    y = subjects[0].col
                     try:
                         result.append(
-                            format_subject_string(subject, time, links_matrix[x][y])
+                            format_subject_string(subject, time, links_matrix)
                         )
                     except IndexError as e:
-                        print("HELP-----------------------------------------------")
-                        print(f"x = {x} y = {y}")
-                        print(f"len 1 = {len(links_matrix)}")
-                        print(f"len 2 = {len(links_matrix[x])}")
-                        print("HELP-----------------------------------------------")
+                        debug(x, y, links_matrix, subject.text, subjects)
 
     return "".join(results[0]), "".join(results[1])

@@ -11,9 +11,9 @@ from aiogram.types import Message
 
 import config
 import utils
+from parser import apply_merges
 from parser import fetch_schedules_dictionary, ScheduleDict, process_schedule_dictionary
 from parser.parser import get_links_matrix
-from parser.sheet_links_experiment import apply_merges
 from repositories import UserRepository, GeneratedScheduleRepository
 
 admin_router = Router()
