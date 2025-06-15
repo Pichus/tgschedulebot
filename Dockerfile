@@ -2,6 +2,11 @@ FROM python:3.13-alpine3.20@sha256:40a4559d3d6b2117b1fbe426f17d55b9100fa40609733
 
 WORKDIR /usr/src/app
 
+RUN addgroup -g 10001 -S bot && \
+    adduser -u 10000 -S -G bot bot && \
+    chown -R bot:bot /usr/src/app
+USER bot:bot
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
