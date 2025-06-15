@@ -3,12 +3,17 @@ services:
   db:
     container_name: postgres_schedulebot
     image: postgres:17.2-alpine3.21
-    restart: always
+    restart: unless-stopped
     shm_size: 128mb
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: schedulebot_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d users_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
       - "5431:5432"
 
@@ -16,12 +21,9 @@ services:
     container_name: python_schedulebot
     build:
       context: .
-    restart: always
+    restart: unless-stopped
     depends_on:
-      - db
-    env_file:
-      - ".env"
-    volumes:
-      - .:/usr/src/app
+      db:
+        condition: service_healthy
     ports:
       - "8000:8000"

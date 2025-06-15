@@ -1,0 +1,9 @@
+.gitignore
+.github/
+.env.example
+.pre-commit-config.yaml
+bot.png
+docker-compose.yml
+Dockerfile
+README.md
+LICENSE
