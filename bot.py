@@ -16,7 +16,7 @@ from handlers import (
     admin,
     one_command,
     add_update_schedule,
-    get_schedule,
+    get_schedule, current_week,
 )
 from models import CronDate
 from scheduler import edit_schedule_messages_in_all_chats_job
@@ -48,6 +48,7 @@ async def main():
         one_command.router,
         add_update_schedule.router,
         get_schedule.router,
+        current_week.router,
     )
 
     await bot.delete_webhook(drop_pending_updates=True)
