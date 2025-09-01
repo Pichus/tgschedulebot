@@ -17,6 +17,10 @@ admin_user_ids = list(map(int, os.getenv("ADMIN_USER_IDS").split(", ")))
 google_credentials = json.loads(os.getenv("GOOGLE_CREDENTIALS"))
 
 commands_list = [
+    BotCommand(
+        command="current_week",
+        description="який зараз тиждень",
+    ),
     BotCommand(command="start", description="додати себе в базу даних бота"),
     # BotCommand(command="add_chat", description="додати чат, в якому ви зараз перебуваєте, в базу даних бота"),
     BotCommand(
