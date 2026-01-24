@@ -86,6 +86,6 @@ def json_string_to_message_entities(json_string: str) -> list[MessageEntity]:
 
 def get_current_week_type() -> str:
     if datetime.now().isocalendar().week % 2 == 0:
-        return "верхній"
+        return "нижній"
 
-    return "нижній"
+    return "верхній"
